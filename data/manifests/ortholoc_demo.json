@@ -1,0 +1,27 @@
+{
+  "id": "ortholoc_official_demo",
+  "purpose": "Проверка текущего SIFT + RANSAC baseline на независимых реальных UAV-кадрах с плотной 3D-истиной",
+  "source": {
+    "title": "OrthoLoC: UAV 6-DoF Localization and Calibration Using Orthographic Geodata",
+    "repository": "https://github.com/deepscenario/OrthoLoC",
+    "paper": "https://papers.neurips.cc/paper_files/paper/2025/hash/2f6a83edafb6b37a80487ce0a6a47e96-Abstract-Datasets_and_Benchmarks_Track.html",
+    "license": "CC BY-NC-SA 4.0",
+    "license_url": "https://github.com/deepscenario/OrthoLoC/blob/main/LICENSE",
+    "authors": "Oussema Dhaouadi, Riccardo Marin, Johannes Michael Meier, Jacques Kaiser, Daniel Cremers"
+  },
+  "storage_directory": "data/queries/ortholoc",
+  "samples": [
+    {
+      "filename": "highway_rural.npz",
+      "description": "Реальный сельско-дорожный UAV-кадр и DOP из близкого визуального домена",
+      "url": "https://raw.githubusercontent.com/deepscenario/OrthoLoC/main/ortholoc/assets/demo/samples/highway_rural.npz",
+      "sha256": "4b74fb7d1b25635f257d9638b6ebefb68f2dc6d698475295f0293324d493ca61"
+    },
+    {
+      "filename": "urban_residential_xDOPDSM.npz",
+      "description": "Реальный городской UAV-кадр с cross-domain DOP и DSM",
+      "url": "https://raw.githubusercontent.com/deepscenario/OrthoLoC/main/ortholoc/assets/demo/samples/urban_residential_xDOPDSM.npz",
+      "sha256": "7e0db0a3dfad8d195fdecc6289a7438118e0487f30286cec34f0000710c0243f"
+    }
+  ]
+}

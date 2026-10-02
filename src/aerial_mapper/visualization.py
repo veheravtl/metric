@@ -293,6 +293,8 @@ def draw_alignment_matches(
     target_height: int = 900,
     maximum_inlier_lines: int = 120,
     maximum_outlier_lines: int = 30,
+    reference_label: str = "REFERENCE",
+    frame_label: str = "SYNTHETIC FRAME",
 ) -> RgbImage:
     """Рисует часть SIFT-пар: зелёные inlier и красные outlier RANSAC.
 
@@ -360,11 +362,27 @@ def draw_alignment_matches(
     draw_pairs(outlier_indices, (255, 70, 70))
     draw_pairs(inlier_indices, (50, 255, 100))
 
-    cv2.rectangle(canvas, (12, 12), (750, 86), (15, 15, 15), thickness=-1)
+    cv2.rectangle(
+        canvas,
+        (12, 12),
+        (canvas.shape[1] - 12, 86),
+        (15, 15, 15),
+        thickness=-1,
+    )
     cv2.putText(
         canvas,
-        "REFERENCE                         SYNTHETIC FRAME",
+        reference_label,
         (25, 42),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.75,
+        (255, 255, 255),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    cv2.putText(
+        canvas,
+        frame_label,
+        (frame_offset_x + 18, 42),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.75,
         (255, 255, 255),

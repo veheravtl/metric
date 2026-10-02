@@ -30,3 +30,19 @@ GeoTIFF записывается в EPSG:32636 (WGS 84 / UTM zone 36N), поэт
 координаты выражены в метрах. В основной логике абсолютные UTM-координаты не
 должны быть обязательными: будущий полигон сможет использовать произвольную
 локальную систему X, Y, заданную контрольными точками.
+
+## Реальные demo-кадры OrthoLoC
+
+Для первого независимого real-data spike используются два официальных
+demo-образца [OrthoLoC](https://github.com/deepscenario/OrthoLoC). Они содержат
+реальные UAV-кадры, DOP, DSM, параметры камеры и плотную 3D-истину. Источник
+распространяется под CC BY-NC-SA 4.0; атрибуция, URL и SHA-256 записаны в
+`manifests/ortholoc_demo.json`.
+
+Файлы воспроизводятся командой:
+
+    uv run python scripts/download_ortholoc_demo.py
+
+Они сохраняются в `queries/ortholoc/` и не коммитятся. Эксперимент и описание
+визуального отчёта находятся в
+[`ortholoc-real-data-spike.md`](../docs/ortholoc-real-data-spike.md).
