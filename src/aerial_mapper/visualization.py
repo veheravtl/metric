@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
+from aerial_mapper.alignment import AlignmentResult
 from aerial_mapper.synthetic import FloatPoints, Homography, RgbImage
 
 
@@ -79,6 +80,177 @@ def draw_reference_footprint(
         )
 
     return annotated
+
+
+def draw_alignment_footprints(
+    reference_rgb: RgbImage,
+    true_corners_reference_px: FloatPoints,
+    estimated_corners_reference_px: FloatPoints,
+) -> RgbImage:
+    """Показывает истинный и независимо найденный следы на одном эталоне."""
+
+    annotated = draw_reference_footprint(
+        reference_rgb,
+        true_corners_reference_px,
+    )
+    estimated_polygon = np.rint(estimated_corners_reference_px).astype(np.int32)
+    line_thickness = max(2, round(min(reference_rgb.shape[:2]) / 900))
+    cv2.polylines(
+        annotated,
+        [estimated_polygon],
+        isClosed=True,
+        color=(0, 255, 255),
+        thickness=line_thickness,
+        lineType=cv2.LINE_AA,
+    )
+
+    # Легенда наносится прямо на изображение, чтобы смысл цветов сохранялся и
+    # после скачивания PNG отдельно от веб-интерфейса.
+    cv2.rectangle(annotated, (18, 18), (570, 105), (20, 20, 20), thickness=-1)
+    cv2.putText(
+        annotated,
+        "ORANGE: ground truth",
+        (35, 52),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 128, 0),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    cv2.putText(
+        annotated,
+        "CYAN: SIFT + RANSAC estimate",
+        (35, 88),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 255, 255),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    return annotated
+
+
+def _resize_to_height(
+    image_rgb: RgbImage, target_height: int
+) -> tuple[RgbImage, float]:
+    """Масштабирует изображение для компактной диагностической композиции."""
+
+    scale = target_height / image_rgb.shape[0]
+    target_width = max(1, round(image_rgb.shape[1] * scale))
+    resized = cv2.resize(
+        image_rgb,
+        (target_width, target_height),
+        interpolation=cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR,
+    )
+    return resized, scale
+
+
+def _sample_indices(indices: np.ndarray, maximum_count: int) -> np.ndarray:
+    """Детерминированно выбирает точки по всему списку для читаемого рисунка."""
+
+    if indices.size <= maximum_count:
+        return indices
+    positions = np.linspace(0, indices.size - 1, maximum_count, dtype=np.int64)
+    return indices[positions]
+
+
+def draw_alignment_matches(
+    reference_rgb: RgbImage,
+    frame_rgb: RgbImage,
+    alignment: AlignmentResult,
+    *,
+    target_height: int = 900,
+    maximum_inlier_lines: int = 120,
+    maximum_outlier_lines: int = 30,
+) -> RgbImage:
+    """Рисует часть SIFT-пар: зелёные inlier и красные outlier RANSAC.
+
+    Все сотни линий сделали бы изображение нечитаемым, поэтому визуализация
+    показывает детерминированную выборку. Числа в диагностике при этом относятся
+    ко всем соответствиям, а не только к нарисованным.
+    """
+
+    reference_display, reference_scale = _resize_to_height(
+        reference_rgb,
+        target_height,
+    )
+    frame_display, frame_scale = _resize_to_height(frame_rgb, target_height)
+    separator_width = 6
+    reference_width = reference_display.shape[1]
+    frame_offset_x = reference_width + separator_width
+
+    canvas = np.zeros(
+        (
+            target_height,
+            reference_width + separator_width + frame_display.shape[1],
+            3,
+        ),
+        dtype=np.uint8,
+    )
+    canvas[:, :reference_width] = reference_display
+    canvas[:, reference_width:frame_offset_x] = 235
+    canvas[:, frame_offset_x:] = frame_display
+
+    all_indices = np.arange(alignment.ratio_match_count, dtype=np.int64)
+    inlier_indices = _sample_indices(
+        all_indices[alignment.inlier_mask],
+        maximum_inlier_lines,
+    )
+    outlier_indices = _sample_indices(
+        all_indices[~alignment.inlier_mask],
+        maximum_outlier_lines,
+    )
+
+    def draw_pairs(indices: np.ndarray, color: tuple[int, int, int]) -> None:
+        for index in indices:
+            reference_point = alignment.reference_points_px[index]
+            frame_point = alignment.frame_points_px[index]
+            reference_xy = (
+                round(float(reference_point[0]) * reference_scale),
+                round(float(reference_point[1]) * reference_scale),
+            )
+            frame_xy = (
+                frame_offset_x + round(float(frame_point[0]) * frame_scale),
+                round(float(frame_point[1]) * frame_scale),
+            )
+            cv2.line(
+                canvas,
+                reference_xy,
+                frame_xy,
+                color,
+                thickness=1,
+                lineType=cv2.LINE_AA,
+            )
+            cv2.circle(canvas, reference_xy, 3, color, thickness=-1)
+            cv2.circle(canvas, frame_xy, 3, color, thickness=-1)
+
+    # Сначала рисуем ошибочные пары, чтобы основные зелёные связи оставались
+    # видимыми поверх них.
+    draw_pairs(outlier_indices, (255, 70, 70))
+    draw_pairs(inlier_indices, (50, 255, 100))
+
+    cv2.rectangle(canvas, (12, 12), (750, 86), (15, 15, 15), thickness=-1)
+    cv2.putText(
+        canvas,
+        "REFERENCE                         SYNTHETIC FRAME",
+        (25, 42),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.75,
+        (255, 255, 255),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    cv2.putText(
+        canvas,
+        "GREEN: RANSAC inlier    RED: rejected match",
+        (25, 73),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (210, 255, 220),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    return canvas
 
 
 def build_reverse_overlay(

@@ -7,15 +7,19 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import cv2
 import gradio as gr
 import numpy as np
 import rasterio
 from numpy.typing import NDArray
 
+from aerial_mapper.alignment import SiftRansacConfig, align_frame_to_reference
+from aerial_mapper.evaluation import evaluate_homography
 from aerial_mapper.synthetic import SyntheticFrameSpec, generate_synthetic_frame
 from aerial_mapper.visualization import (
     build_reverse_overlay,
-    draw_reference_footprint,
+    draw_alignment_footprints,
+    draw_alignment_matches,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -64,14 +68,15 @@ def render_experiment(
     NDArray[np.uint8],
     NDArray[np.uint8],
     NDArray[np.uint8],
+    NDArray[np.uint8],
     dict[str, Any],
 ]:
-    """Создаёт изображения и диагностику для выбранной плоской деформации.
+    """Генерирует кадр, независимо привязывает его и оценивает результат.
 
     Аргументы приходят из компонентов Gradio, поэтому мы явно приводим их к
-    ``float`` перед передачей в математическое ядро. Интерфейс отвечает только
-    за ввод параметров и отображение результата; сама генерация синтетического
-    кадра остаётся в пакете ``aerial_mapper`` и проверяется отдельно тестами.
+    ``float`` перед передачей в математическое ядро. Важная граница эксперимента:
+    функция ``align_frame_to_reference`` получает только два изображения. Лишь
+    после её завершения истинная матрица генератора передаётся оценщику ошибки.
     """
 
     reference_rgb, resolution_m_per_pixel, reference_crs = load_reference()
@@ -85,16 +90,45 @@ def render_experiment(
         spec=spec,
     )
 
-    annotated_reference = draw_reference_footprint(
+    alignment_config = SiftRansacConfig()
+    alignment = align_frame_to_reference(
+        reference_rgb,
+        synthetic.image_rgb,
+        config=alignment_config,
+    )
+    evaluation = evaluate_homography(
+        alignment.homography_frame_to_reference,
+        synthetic.homography_frame_to_reference,
+        frame_width_pixels=spec.output_width_pixels,
+        frame_height_pixels=spec.output_height_pixels,
+        reference_resolution_m_per_pixel=resolution_m_per_pixel,
+    )
+
+    # Эти углы вычисляются из найденной матрицы. Истинные углы генератора не
+    # участвуют в привязке и нужны только для последующего сравнения контуров.
+    estimated_corners_reference_px = cv2.perspectiveTransform(
+        synthetic.destination_corners_frame_px.reshape(1, -1, 2),
+        alignment.homography_frame_to_reference,
+    ).reshape(-1, 2)
+
+    annotated_reference = draw_alignment_footprints(
         reference_rgb,
         synthetic.source_corners_reference_px,
+        estimated_corners_reference_px,
+    )
+    match_visualization = draw_alignment_matches(
+        reference_rgb,
+        synthetic.image_rgb,
+        alignment,
     )
     reverse_overlay = build_reverse_overlay(
         reference_rgb,
         synthetic.image_rgb,
-        synthetic.homography_frame_to_reference,
-        synthetic.source_corners_reference_px,
+        alignment.homography_frame_to_reference,
+        estimated_corners_reference_px,
     )
+    normalized_true_homography = synthetic.homography_frame_to_reference.copy()
+    normalized_true_homography /= normalized_true_homography[2, 2]
 
     diagnostics: dict[str, Any] = {
         "reference": {
@@ -116,27 +150,83 @@ def render_experiment(
             "rotation_degrees": spec.rotation_degrees,
             "perspective_strength": spec.perspective_strength,
         },
-        "source_corners_reference_px": np.round(
-            synthetic.source_corners_reference_px,
-            3,
-        ).tolist(),
-        "homography_reference_to_frame": np.round(
-            synthetic.homography_reference_to_frame,
-            8,
-        ).tolist(),
-        "homography_frame_to_reference": np.round(
-            synthetic.homography_frame_to_reference,
-            8,
-        ).tolist(),
-        "reverse_overlay": {
+        "independent_alignment": {
+            "method": "SIFT + brute-force kNN + Lowe ratio test + RANSAC",
+            "reference_keypoints": alignment.reference_keypoint_count,
+            "frame_keypoints": alignment.frame_keypoint_count,
+            "candidate_knn_pairs": alignment.candidate_match_count,
+            "matches_after_ratio_test": alignment.ratio_match_count,
+            "ransac_inliers": alignment.inlier_count,
+            "ransac_inlier_ratio": round(alignment.inlier_ratio, 4),
+            "inlier_spatial_coverage_fraction": round(
+                alignment.inlier_spatial_coverage_fraction,
+                4,
+            ),
+            "processing_time_seconds": round(
+                alignment.processing_time_seconds,
+                4,
+            ),
+            "ratio_threshold": alignment_config.ratio_threshold,
+            "ransac_reprojection_threshold_reference_px": (
+                alignment_config.ransac_reprojection_threshold_px
+            ),
+            "estimated_homography_frame_to_reference": np.round(
+                alignment.homography_frame_to_reference,
+                8,
+            ).tolist(),
+        },
+        "evaluation_after_alignment": {
+            "control_grid_points": evaluation.control_point_count,
+            "mean_transfer_error_reference_px": round(
+                evaluation.mean_error_pixels,
+                4,
+            ),
+            "median_transfer_error_reference_px": round(
+                evaluation.median_error_pixels,
+                4,
+            ),
+            "max_transfer_error_reference_px": round(
+                evaluation.max_error_pixels,
+                4,
+            ),
+            "rmse_transfer_error_reference_px": round(
+                evaluation.root_mean_square_error_pixels,
+                4,
+            ),
+            "mean_transfer_error_meters": round(
+                evaluation.mean_error_meters,
+                6,
+            ),
+            "median_transfer_error_meters": round(
+                evaluation.median_error_meters,
+                6,
+            ),
+            "max_transfer_error_meters": round(
+                evaluation.max_error_meters,
+                6,
+            ),
+            "corner_errors_reference_px": np.round(
+                evaluation.corner_errors_pixels,
+                4,
+            ).tolist(),
+            "true_homography_frame_to_reference": np.round(
+                normalized_true_homography,
+                8,
+            ).tolist(),
+            "note": (
+                "Истинная матрица открывается только оценщику после того, "
+                "как SIFT/RANSAC завершили независимый расчёт."
+            ),
+        },
+        "estimated_reverse_overlay": {
             "covered_pixels": reverse_overlay.covered_pixels,
             "mean_absolute_error_0_255": round(
                 reverse_overlay.mean_absolute_error,
                 4,
             ),
             "note": (
-                "Ошибка не обязана быть нулевой из-за двух последовательных "
-                "интерполяций изображения."
+                "Наложение построено найденной, а не истинной матрицей. "
+                "Фотометрическая ошибка включает интерполяцию изображения."
             ),
         },
     }
@@ -144,6 +234,7 @@ def render_experiment(
     return (
         annotated_reference,
         synthetic.image_rgb,
+        match_visualization,
         reverse_overlay.comparison_rgb,
         diagnostics,
     )
@@ -155,6 +246,7 @@ def build_app() -> gr.Blocks:
     (
         initial_reference,
         initial_frame,
+        initial_matches,
         initial_overlay,
         initial_diagnostics,
     ) = render_experiment()
@@ -166,24 +258,23 @@ def build_app() -> gr.Blocks:
     ) as demo:
         gr.Markdown(
             """
-# Визуальная проверка синтетической гомографии
+# Честная плоская привязка: SIFT + RANSAC
 
-Слева показан полный эталон и оранжевый след виртуальной камеры. Справа —
-прямоугольный кадр, полученный перспективным преобразованием этого участка.
-Ниже кадр преобразован обратно: красно-бирюзовые двойные контуры означают
-несовпадение, серые области — геометрическое согласие.
+Генератор знает истинное положение участка, но алгоритм привязки получает только
+полный эталон и готовый кадр. SIFT самостоятельно находит локальные признаки,
+а RANSAC выбирает пары, согласующиеся с одной гомографией.
 
-Это пока контрольный пример с известной истинной гомографией. Здесь ещё нет
-оценивания гомографии по выбранным или автоматически найденным точкам. Важно:
-слайдер «перспектива» деформирует одну плоскость и не моделирует высоту зданий,
-видимые фасады, деревья, взаимные перекрытия объектов и параллакс.
+На эталоне оранжевый контур — скрытая от алгоритма истина, бирюзовый — независимо
+найденное положение. Красно-бирюзовое наложение ниже построено уже оценённой
+матрицей. Слайдер «перспектива» по-прежнему деформирует только одну плоскость и
+не моделирует высоту зданий, фасады, окклюзии и параллакс.
 """
         )
 
         with gr.Row():
             reference_image = gr.Image(
                 value=initial_reference,
-                label="Полный эталон и след камеры",
+                label="Истинный (оранжевый) и найденный (бирюзовый) след",
                 format="png",
                 image_mode="RGB",
                 interactive=False,
@@ -225,14 +316,27 @@ def build_app() -> gr.Blocks:
             )
 
         recompute_button = gr.Button(
-            "Пересчитать контрольный пример",
+            "Создать кадр и найти его без подсказки",
             variant="primary",
+        )
+
+        match_image = gr.Image(
+            value=initial_matches,
+            label=(
+                "SIFT-пары: зелёные приняты RANSAC, красные отвергнуты "
+                "(показана выборка)"
+            ),
+            format="png",
+            image_mode="RGB",
+            interactive=False,
+            height=540,
+            buttons=["fullscreen", "download"],
         )
 
         with gr.Row():
             overlay_image = gr.Image(
                 value=initial_overlay,
-                label="Обратное наложение: красный — кадр, бирюзовый — эталон",
+                label=("Наложение по найденной H: красный — кадр, бирюзовый — эталон"),
                 format="png",
                 image_mode="RGB",
                 interactive=False,
@@ -242,7 +346,7 @@ def build_app() -> gr.Blocks:
             )
             diagnostics = gr.JSON(
                 value=initial_diagnostics,
-                label="Параметры и геометрическая истина",
+                label="Признаки, RANSAC и независимая ошибка",
                 open=True,
                 scale=1,
             )
@@ -253,6 +357,7 @@ def build_app() -> gr.Blocks:
             outputs=[
                 reference_image,
                 frame_image,
+                match_image,
                 overlay_image,
                 diagnostics,
             ],
