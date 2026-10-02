@@ -27,6 +27,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_PATH = PROJECT_ROOT / "data/reference/cherkasy_2021_poc.tif"
 DEFAULT_ROTATION_DEGREES = 12.0
 DEFAULT_PERSPECTIVE_STRENGTH = 0.35
+DEFAULT_CENTER_X_FRACTION = 0.5
+DEFAULT_CENTER_Y_FRACTION = 0.5
 
 
 @lru_cache(maxsize=1)
@@ -65,6 +67,8 @@ def load_reference() -> tuple[NDArray[np.uint8], float, str]:
 def render_experiment(
     rotation_degrees: float = DEFAULT_ROTATION_DEGREES,
     perspective_strength: float = DEFAULT_PERSPECTIVE_STRENGTH,
+    center_x_fraction: float = DEFAULT_CENTER_X_FRACTION,
+    center_y_fraction: float = DEFAULT_CENTER_Y_FRACTION,
 ) -> tuple[
     NDArray[np.uint8],
     NDArray[np.uint8],
@@ -84,6 +88,8 @@ def render_experiment(
     spec = SyntheticFrameSpec(
         rotation_degrees=float(rotation_degrees),
         perspective_strength=float(perspective_strength),
+        center_x_fraction=float(center_x_fraction),
+        center_y_fraction=float(center_y_fraction),
     )
     synthetic = generate_synthetic_frame(
         reference_rgb,
@@ -155,6 +161,10 @@ def render_experiment(
             ],
             "rotation_degrees": spec.rotation_degrees,
             "perspective_strength": spec.perspective_strength,
+            "center_fraction_xy": [
+                spec.center_x_fraction,
+                spec.center_y_fraction,
+            ],
         },
         "independent_alignment": {
             "method": "SIFT + brute-force kNN + Lowe ratio test + RANSAC",
@@ -369,6 +379,30 @@ def build_app() -> gr.Blocks:
                 ),
             )
 
+        with gr.Row():
+            center_x_slider = gr.Slider(
+                minimum=0.37,
+                maximum=0.65,
+                value=DEFAULT_CENTER_X_FRACTION,
+                step=0.01,
+                label="Положение центра по горизонтали",
+                info=(
+                    "Доля ширины эталона: 0,5 — центр. Диапазон ограничен, "
+                    "чтобы след не вышел за карту при максимальном повороте."
+                ),
+            )
+            center_y_slider = gr.Slider(
+                minimum=0.35,
+                maximum=0.65,
+                value=DEFAULT_CENTER_Y_FRACTION,
+                step=0.01,
+                label="Положение центра по вертикали",
+                info=(
+                    "Доля высоты эталона: меньшие значения перемещают кадр "
+                    "вверх, большие — вниз."
+                ),
+            )
+
         recompute_button = gr.Button(
             "Создать кадр и найти его без подсказки",
             variant="primary",
@@ -407,7 +441,12 @@ def build_app() -> gr.Blocks:
 
         recompute_button.click(
             fn=render_experiment,
-            inputs=[rotation_slider, perspective_slider],
+            inputs=[
+                rotation_slider,
+                perspective_slider,
+                center_x_slider,
+                center_y_slider,
+            ],
             outputs=[
                 reference_image,
                 frame_image,

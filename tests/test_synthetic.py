@@ -124,6 +124,40 @@ def test_rotation_and_perspective_change_camera_footprint() -> None:
     assert not np.array_equal(frontal.image_rgb, oblique.image_rgb)
 
 
+def test_normalized_center_moves_footprint_to_requested_reference_position() -> None:
+    """Центр следа должен совпадать с заданной долей размеров эталона."""
+
+    reference = make_test_reference()
+    result = generate_synthetic_frame(
+        reference,
+        reference_resolution_m_per_pixel=0.1,
+        spec=SyntheticFrameSpec(
+            footprint_width_m=40.0,
+            footprint_height_m=30.0,
+            rotation_degrees=0.0,
+            perspective_strength=0.0,
+            center_x_fraction=0.35,
+            center_y_fraction=0.65,
+        ),
+    )
+
+    # При нулевой перспективе среднее четырёх углов равно геометрическому
+    # центру. Эталон имеет размер 1000 × 1000, поэтому ожидаем (350, 650).
+    footprint_center = result.source_corners_reference_px.mean(axis=0)
+    assert footprint_center == pytest.approx([350.0, 650.0], abs=1e-5)
+
+
+def test_normalized_center_outside_open_unit_interval_is_rejected() -> None:
+    """Некорректную нормированную координату нужно отклонить до геометрии."""
+
+    with pytest.raises(ValueError, match="координата центра"):
+        generate_synthetic_frame(
+            make_test_reference(),
+            reference_resolution_m_per_pixel=0.1,
+            spec=SyntheticFrameSpec(center_x_fraction=1.0),
+        )
+
+
 def test_visualizations_keep_reference_dimensions() -> None:
     """Разметка и обратное наложение не должны менять размер эталона."""
 

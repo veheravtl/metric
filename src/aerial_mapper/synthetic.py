@@ -20,6 +20,45 @@ FloatPoints = NDArray[np.float32]
 Homography = NDArray[np.float64]
 
 
+def calculate_valid_axis_centers(
+    *,
+    image_size_pixels: int,
+    footprint_size_pixels: float,
+    travel_fractions: tuple[float, ...],
+) -> NDArray[np.float64]:
+    """Переводит доли допустимого хода в координаты центра по одной оси.
+
+    Доля 0 помещает ближний край следа на первый пиксель изображения, а доля
+    1 — дальний край на последний пиксель. Такая шкала полезнее доли от всей
+    ширины карты: при любом размере следа её крайние значения остаются
+    геометрически осмысленными и не создают область вне эталона.
+    """
+
+    if image_size_pixels <= 1:
+        raise ValueError("Размер эталона вдоль оси должен быть больше пикселя")
+    if footprint_size_pixels <= 0:
+        raise ValueError("Размер следа вдоль оси должен быть положительным")
+    if not travel_fractions:
+        raise ValueError("Нужно указать хотя бы одну долю допустимого хода")
+    if any(not 0.0 <= value <= 1.0 for value in travel_fractions):
+        raise ValueError("Доли допустимого хода должны находиться в диапазоне [0, 1]")
+
+    half_footprint = footprint_size_pixels / 2.0
+    minimum_center = half_footprint
+    maximum_center = image_size_pixels - 1.0 - half_footprint
+    if maximum_center < minimum_center:
+        raise ValueError("След больше эталона и не помещается вдоль выбранной оси")
+
+    available_travel = maximum_center - minimum_center
+    return np.asarray(
+        [
+            minimum_center + travel_fraction * available_travel
+            for travel_fraction in travel_fractions
+        ],
+        dtype=np.float64,
+    )
+
+
 @dataclass(frozen=True)
 class SyntheticFrameSpec:
     """Параметры одного контролируемого синтетического кадра.
@@ -35,6 +74,8 @@ class SyntheticFrameSpec:
     output_height_pixels: int = 960
     rotation_degrees: float = 12.0
     perspective_strength: float = 0.35
+    center_x_fraction: float = 0.5
+    center_y_fraction: float = 0.5
 
     def validate(self) -> None:
         """Проверяет параметры до начала геометрических вычислений."""
@@ -45,6 +86,10 @@ class SyntheticFrameSpec:
             raise ValueError("Размер изображения в пикселях должен быть положительным")
         if not 0.0 <= self.perspective_strength <= 1.0:
             raise ValueError("Сила перспективы должна находиться в диапазоне [0, 1]")
+        if not 0.0 < self.center_x_fraction < 1.0:
+            raise ValueError("Горизонтальная координата центра должна быть между 0 и 1")
+        if not 0.0 < self.center_y_fraction < 1.0:
+            raise ValueError("Вертикальная координата центра должна быть между 0 и 1")
 
 
 @dataclass(frozen=True)
@@ -71,7 +116,12 @@ def _build_source_corners(
     Точки перечисляются по часовой стрелке: левая верхняя, правая верхняя,
     правая нижняя, левая нижняя. Сначала строится прямоугольник требуемого
     физического размера, затем его углы умеренно сдвигаются и вся фигура
-    поворачивается вокруг центра эталона.
+    поворачивается вокруг своего центра и переносится в заданную точку эталона.
+
+    Положение центра задаётся долями ширины и высоты эталона. Например,
+    ``(0.5, 0.5)`` сохраняет прежнее поведение и помещает след в центр карты,
+    а ``(0.25, 0.75)`` переносит его левее и ниже. Это координаты генератора:
+    алгоритм привязки их не получает.
     """
 
     footprint_width_px = spec.footprint_width_m / reference_resolution_m_per_pixel
@@ -103,8 +153,8 @@ def _build_source_corners(
     )
     corners += spec.perspective_strength * perspective_offsets
 
-    # Сохраняем центр следа в центре эталона, чтобы деформация не вносила
-    # неявного смещения всего выбранного участка.
+    # Сначала возвращаем деформированный четырёхугольник к нулевому центру,
+    # чтобы перспективный шаблон не вносил скрытое смещение выбранной точки.
     corners -= corners.mean(axis=0)
 
     angle = radians(spec.rotation_degrees)
@@ -117,7 +167,10 @@ def _build_source_corners(
     )
     corners = corners @ rotation.T
     corners += np.array(
-        [reference_width_pixels / 2.0, reference_height_pixels / 2.0],
+        [
+            reference_width_pixels * spec.center_x_fraction,
+            reference_height_pixels * spec.center_y_fraction,
+        ],
         dtype=np.float64,
     )
 
