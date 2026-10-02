@@ -83,6 +83,47 @@ def test_forward_and_inverse_homographies_cancel_each_other() -> None:
     assert round_trip == pytest.approx(np.eye(3), abs=1e-9)
 
 
+def test_rotation_and_perspective_change_camera_footprint() -> None:
+    """Параметры GUI должны действительно менять след виртуальной камеры.
+
+    Здесь проверяется не конкретная формула углов, а наблюдаемое свойство:
+    отличный от нуля поворот вместе с перспективным перекосом не должен
+    порождать тот же четырёхугольник, что и фронтальный прямоугольный вид.
+    """
+
+    reference = make_test_reference()
+    common_parameters = {
+        "footprint_width_m": 60.0,
+        "footprint_height_m": 45.0,
+        "output_width_pixels": 640,
+        "output_height_pixels": 480,
+    }
+    frontal = generate_synthetic_frame(
+        reference,
+        reference_resolution_m_per_pixel=0.1,
+        spec=SyntheticFrameSpec(
+            **common_parameters,
+            rotation_degrees=0.0,
+            perspective_strength=0.0,
+        ),
+    )
+    oblique = generate_synthetic_frame(
+        reference,
+        reference_resolution_m_per_pixel=0.1,
+        spec=SyntheticFrameSpec(
+            **common_parameters,
+            rotation_degrees=20.0,
+            perspective_strength=0.6,
+        ),
+    )
+
+    assert not np.allclose(
+        frontal.source_corners_reference_px,
+        oblique.source_corners_reference_px,
+    )
+    assert not np.array_equal(frontal.image_rgb, oblique.image_rgb)
+
+
 def test_visualizations_keep_reference_dimensions() -> None:
     """Разметка и обратное наложение не должны менять размер эталона."""
 

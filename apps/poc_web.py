@@ -20,6 +20,8 @@ from aerial_mapper.visualization import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_PATH = PROJECT_ROOT / "data/reference/cherkasy_2021_poc.tif"
+DEFAULT_ROTATION_DEGREES = 12.0
+DEFAULT_PERSPECTIVE_STRENGTH = 0.35
 
 
 @lru_cache(maxsize=1)
@@ -55,16 +57,28 @@ def load_reference() -> tuple[NDArray[np.uint8], float, str]:
         return reference_rgb, resolution_x, dataset.crs.to_string()
 
 
-def render_experiment() -> tuple[
+def render_experiment(
+    rotation_degrees: float = DEFAULT_ROTATION_DEGREES,
+    perspective_strength: float = DEFAULT_PERSPECTIVE_STRENGTH,
+) -> tuple[
     NDArray[np.uint8],
     NDArray[np.uint8],
     NDArray[np.uint8],
     dict[str, Any],
 ]:
-    """Создаёт все три изображения и диагностические значения интерфейса."""
+    """Создаёт изображения и диагностику для выбранной плоской деформации.
+
+    Аргументы приходят из компонентов Gradio, поэтому мы явно приводим их к
+    ``float`` перед передачей в математическое ядро. Интерфейс отвечает только
+    за ввод параметров и отображение результата; сама генерация синтетического
+    кадра остаётся в пакете ``aerial_mapper`` и проверяется отдельно тестами.
+    """
 
     reference_rgb, resolution_m_per_pixel, reference_crs = load_reference()
-    spec = SyntheticFrameSpec()
+    spec = SyntheticFrameSpec(
+        rotation_degrees=float(rotation_degrees),
+        perspective_strength=float(perspective_strength),
+    )
     synthetic = generate_synthetic_frame(
         reference_rgb,
         reference_resolution_m_per_pixel=resolution_m_per_pixel,
@@ -160,7 +174,9 @@ def build_app() -> gr.Blocks:
 несовпадение, серые области — геометрическое согласие.
 
 Это пока контрольный пример с известной истинной гомографией. Здесь ещё нет
-оценивания гомографии по выбранным или автоматически найденным точкам.
+оценивания гомографии по выбранным или автоматически найденным точкам. Важно:
+слайдер «перспектива» деформирует одну плоскость и не моделирует высоту зданий,
+видимые фасады, деревья, взаимные перекрытия объектов и параллакс.
 """
         )
 
@@ -182,6 +198,30 @@ def build_app() -> gr.Blocks:
                 interactive=False,
                 height=520,
                 buttons=["fullscreen", "download"],
+            )
+
+        with gr.Row():
+            rotation_slider = gr.Slider(
+                minimum=-35.0,
+                maximum=35.0,
+                value=DEFAULT_ROTATION_DEGREES,
+                step=1.0,
+                label="Поворот участка, градусы",
+                info=(
+                    "Поворачивает след виртуальной камеры относительно "
+                    "эталонного снимка."
+                ),
+            )
+            perspective_slider = gr.Slider(
+                minimum=0.0,
+                maximum=0.8,
+                value=DEFAULT_PERSPECTIVE_STRENGTH,
+                step=0.05,
+                label="Сила плоского перспективного перекоса",
+                info=(
+                    "0 — прямоугольный участок; большие значения сильнее "
+                    "сужают одну сторону четырёхугольника. Это не 3D-модель."
+                ),
             )
 
         recompute_button = gr.Button(
@@ -209,7 +249,7 @@ def build_app() -> gr.Blocks:
 
         recompute_button.click(
             fn=render_experiment,
-            inputs=None,
+            inputs=[rotation_slider, perspective_slider],
             outputs=[
                 reference_image,
                 frame_image,
