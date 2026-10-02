@@ -1,0 +1,43 @@
+# Локальное виртуальное окружение. Оно воспроизводится из pyproject.toml и uv.lock.
+.venv/
+
+# Служебные файлы Python и результаты сборки пакета.
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Кэши инструментов разработки и отчёты о покрытии.
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Локальные настройки редакторов и операционной системы.
+.idea/
+.vscode/
+.DS_Store
+
+# Локальные переменные окружения и секреты.
+.env
+.env.*
+!.env.example
+
+# Реальные исходные данные и результаты экспериментов не должны попадать в Git.
+data/reference/*
+data/queries/*
+outputs/*
+
+# Пустые каталоги сохраняются через специальные файлы-маркеры.
+!data/reference/.gitkeep
+!data/queries/.gitkeep
+!outputs/.gitkeep
+
+# Типичные тяжёлые форматы аэрофотосъёмки и видео.
+*.tif
+*.tiff
+*.mp4
+*.avi
+*.mov
