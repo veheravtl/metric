@@ -12,15 +12,23 @@ import gradio as gr
 import numpy as np
 import rasterio
 from numpy.typing import NDArray
+from rasterio import Affine
 
 from aerial_mapper.alignment import SiftRansacConfig, align_frame_to_reference
 from aerial_mapper.evaluation import evaluate_homography
+from aerial_mapper.measurement_evaluation import (
+    build_poc_control_definitions,
+    evaluate_metric_controls,
+    metric_evaluation_to_dict,
+)
 from aerial_mapper.quality import analyze_alignment_quality
 from aerial_mapper.synthetic import SyntheticFrameSpec, generate_synthetic_frame
 from aerial_mapper.visualization import (
     build_reverse_overlay,
     draw_alignment_footprints,
     draw_alignment_matches,
+    draw_metric_controls_on_frame,
+    draw_metric_evaluations_on_reference,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +40,7 @@ DEFAULT_CENTER_Y_FRACTION = 0.5
 
 
 @lru_cache(maxsize=1)
-def load_reference() -> tuple[NDArray[np.uint8], float, str]:
+def load_reference() -> tuple[NDArray[np.uint8], float, Affine, str]:
     """Загружает RGB-эталон и его метрическое разрешение один раз за процесс.
 
     Кэш нужен только для отзывчивости интерфейса: повторное нажатие кнопки не
@@ -61,7 +69,12 @@ def load_reference() -> tuple[NDArray[np.uint8], float, str]:
         # Gradio и OpenCV в этом проекте используют строки, столбцы, каналы.
         bands_first = dataset.read((1, 2, 3))
         reference_rgb = np.moveaxis(bands_first, 0, -1)
-        return reference_rgb, resolution_x, dataset.crs.to_string()
+        return (
+            reference_rgb,
+            resolution_x,
+            dataset.transform,
+            dataset.crs.to_string(),
+        )
 
 
 def render_experiment(
@@ -84,7 +97,12 @@ def render_experiment(
     после её завершения истинная матрица генератора передаётся оценщику ошибки.
     """
 
-    reference_rgb, resolution_m_per_pixel, reference_crs = load_reference()
+    (
+        reference_rgb,
+        resolution_m_per_pixel,
+        reference_transform,
+        reference_crs,
+    ) = load_reference()
     spec = SyntheticFrameSpec(
         rotation_degrees=float(rotation_degrees),
         perspective_strength=float(perspective_strength),
@@ -115,6 +133,21 @@ def render_experiment(
         frame_height_pixels=spec.output_height_pixels,
         reference_resolution_m_per_pixel=resolution_m_per_pixel,
     )
+    metric_controls = build_poc_control_definitions(
+        frame_width_pixels=spec.output_width_pixels,
+        frame_height_pixels=spec.output_height_pixels,
+    )
+    metric_evaluations = evaluate_metric_controls(
+        metric_controls,
+        estimated_homography_frame_to_reference=(
+            alignment.homography_frame_to_reference
+        ),
+        true_homography_frame_to_reference=(synthetic.homography_frame_to_reference),
+        reference_transform=reference_transform,
+        reference_crs=reference_crs,
+        reference_width_pixels=reference_rgb.shape[1],
+        reference_height_pixels=reference_rgb.shape[0],
+    )
 
     # Эти углы вычисляются из найденной матрицы. Истинные углы генератора не
     # участвуют в привязке и нужны только для последующего сравнения контуров.
@@ -127,6 +160,14 @@ def render_experiment(
         reference_rgb,
         synthetic.source_corners_reference_px,
         estimated_corners_reference_px,
+    )
+    annotated_reference = draw_metric_evaluations_on_reference(
+        annotated_reference,
+        metric_evaluations,
+    )
+    annotated_frame = draw_metric_controls_on_frame(
+        synthetic.image_rgb,
+        metric_controls,
     )
     match_visualization = draw_alignment_matches(
         reference_rgb,
@@ -282,6 +323,19 @@ def render_experiment(
                 "как SIFT/RANSAC завершили независимый расчёт."
             ),
         },
+        "metric_measurements": {
+            "crs": reference_crs,
+            "coordinate_units": "m for segments; m² for polygons",
+            "controls": [
+                metric_evaluation_to_dict(result, decimals=6)
+                for result in metric_evaluations
+            ],
+            "note": (
+                "Рабочая ветка использует найденную H. Истинная H открывается "
+                "только отдельному оценщику для расчёта ошибки. Численного "
+                "порога годности пока нет."
+            ),
+        },
         "estimated_reverse_overlay": {
             "covered_pixels": reverse_overlay.covered_pixels,
             "mean_absolute_error_0_255": round(
@@ -297,7 +351,7 @@ def render_experiment(
 
     return (
         annotated_reference,
-        synthetic.image_rgb,
+        annotated_frame,
         match_visualization,
         reverse_overlay.comparison_rgb,
         diagnostics,
@@ -332,6 +386,10 @@ def build_app() -> gr.Blocks:
 найденное положение. Красно-бирюзовое наложение ниже построено уже оценённой
 матрицей. Слайдер «перспектива» по-прежнему деформирует только одну плоскость и
 не моделирует высоту зданий, фасады, окклюзии и параллакс.
+
+На кадре жёлтым показаны контрольные отрезки, пурпурным — полигоны. Они не
+участвуют в SIFT/RANSAC и измеряются только после независимой привязки. На
+эталоне оранжевые контрольные фигуры построены истинной H, бирюзовые — найденной.
 """
         )
 
@@ -347,7 +405,7 @@ def build_app() -> gr.Blocks:
             )
             frame_image = gr.Image(
                 value=initial_frame,
-                label="Синтетический кадр виртуальной камеры",
+                label="Кадр с независимыми контролями расстояний и площадей",
                 format="png",
                 image_mode="RGB",
                 interactive=False,

@@ -8,6 +8,10 @@ import cv2
 import numpy as np
 
 from aerial_mapper.alignment import AlignmentResult
+from aerial_mapper.measurement_evaluation import (
+    MetricControlDefinition,
+    MetricControlEvaluation,
+)
 from aerial_mapper.synthetic import FloatPoints, Homography, RgbImage
 
 
@@ -18,6 +22,133 @@ class ReverseOverlayResult:
     comparison_rgb: RgbImage
     mean_absolute_error: float
     covered_pixels: int
+
+
+def draw_metric_controls_on_frame(
+    frame_rgb: RgbImage,
+    controls: tuple[MetricControlDefinition, ...],
+) -> RgbImage:
+    """Показывает независимые контрольные фигуры, измеряемые после привязки."""
+
+    annotated = frame_rgb.copy()
+    line_thickness = max(2, round(min(frame_rgb.shape[:2]) / 400))
+    for index, control in enumerate(controls, start=1):
+        points = np.rint(control.frame_points_px).astype(np.int32)
+        color = (255, 220, 40) if control.kind == "segment" else (255, 80, 220)
+        cv2.polylines(
+            annotated,
+            [points],
+            isClosed=control.kind == "polygon",
+            color=color,
+            thickness=line_thickness,
+            lineType=cv2.LINE_AA,
+        )
+        for point in points:
+            cv2.circle(
+                annotated,
+                tuple(int(value) for value in point),
+                radius=line_thickness * 2,
+                color=color,
+                thickness=-1,
+                lineType=cv2.LINE_AA,
+            )
+        label_point = tuple(int(value) for value in points[0])
+        cv2.putText(
+            annotated,
+            str(index),
+            (label_point[0] + 8, label_point[1] - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            (20, 20, 20),
+            thickness=4,
+            lineType=cv2.LINE_AA,
+        )
+        cv2.putText(
+            annotated,
+            str(index),
+            (label_point[0] + 8, label_point[1] - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            color,
+            thickness=2,
+            lineType=cv2.LINE_AA,
+        )
+
+    cv2.rectangle(annotated, (12, 12), (660, 82), (20, 20, 20), thickness=-1)
+    cv2.putText(
+        annotated,
+        "YELLOW: distance controls",
+        (28, 42),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (255, 220, 40),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    cv2.putText(
+        annotated,
+        "MAGENTA: area controls",
+        (28, 70),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (255, 80, 220),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    return annotated
+
+
+def draw_metric_evaluations_on_reference(
+    reference_rgb: RgbImage,
+    evaluations: tuple[MetricControlEvaluation, ...],
+) -> RgbImage:
+    """Накладывает истинные и измеренные положения контрольных фигур."""
+
+    annotated = reference_rgb.copy()
+    line_thickness = max(2, round(min(reference_rgb.shape[:2]) / 900))
+    for evaluation in evaluations:
+        true_points = np.rint(evaluation.true_reference_points_px).astype(np.int32)
+        estimated_points = np.rint(evaluation.estimated_reference_points_px).astype(
+            np.int32
+        )
+        is_closed = evaluation.kind == "polygon"
+        cv2.polylines(
+            annotated,
+            [true_points],
+            isClosed=is_closed,
+            color=(255, 128, 0),
+            thickness=line_thickness + 2,
+            lineType=cv2.LINE_AA,
+        )
+        cv2.polylines(
+            annotated,
+            [estimated_points],
+            isClosed=is_closed,
+            color=(0, 255, 255),
+            thickness=line_thickness,
+            lineType=cv2.LINE_AA,
+        )
+
+    reference_height = reference_rgb.shape[0]
+    legend_top = reference_height - 95
+    cv2.rectangle(
+        annotated,
+        (18, legend_top),
+        (650, reference_height - 18),
+        (20, 20, 20),
+        thickness=-1,
+    )
+    cv2.putText(
+        annotated,
+        "METRIC CONTROLS: ORANGE truth / CYAN estimate",
+        (35, legend_top + 47),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.72,
+        (245, 245, 245),
+        thickness=2,
+        lineType=cv2.LINE_AA,
+    )
+    return annotated
 
 
 def draw_reference_footprint(
