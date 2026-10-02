@@ -23,9 +23,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 from matplotlib.axes import Axes
+from rasterio import Affine
 
 from aerial_mapper.alignment import AlignmentFailure, align_frame_to_reference
 from aerial_mapper.evaluation import evaluate_homography
+from aerial_mapper.measurement_evaluation import (
+    build_poc_control_definitions,
+    evaluate_metric_controls,
+    metric_evaluation_to_dict,
+)
 from aerial_mapper.quality import analyze_alignment_quality
 from aerial_mapper.synthetic import (
     SyntheticFrameSpec,
@@ -36,8 +42,10 @@ from aerial_mapper.synthetic import (
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REFERENCE_PATH = PROJECT_ROOT / "data/reference/cherkasy_2021_poc.tif"
 OUTPUT_CSV_PATH = PROJECT_ROOT / "outputs/spatial_alignment_grid.csv"
+OUTPUT_METRIC_CSV_PATH = PROJECT_ROOT / "outputs/spatial_metric_controls.csv"
 OUTPUT_SUMMARY_PATH = PROJECT_ROOT / "outputs/spatial_alignment_grid_summary.json"
 OUTPUT_PLOT_PATH = PROJECT_ROOT / "outputs/spatial_alignment_grid.png"
+OUTPUT_METRIC_PLOT_PATH = PROJECT_ROOT / "outputs/spatial_metric_grid.png"
 
 FOOTPRINT_WIDTH_M = 120.0
 FOOTPRINT_HEIGHT_M = 90.0
@@ -51,8 +59,8 @@ OUTPUT_HEIGHT_PIXELS = 960
 TRAVEL_FRACTIONS = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 
-def load_reference() -> tuple[np.ndarray, float]:
-    """Загружает локальный RGB-эталон и его метрическое разрешение."""
+def load_reference() -> tuple[np.ndarray, float, Affine, str]:
+    """Загружает RGB-эталон вместе с полной метрической геопривязкой."""
 
     if not REFERENCE_PATH.exists():
         raise FileNotFoundError(
@@ -60,18 +68,30 @@ def load_reference() -> tuple[np.ndarray, float]:
         )
 
     with rasterio.open(REFERENCE_PATH) as dataset:
+        if dataset.crs is None:
+            raise ValueError("GeoTIFF не содержит CRS")
         resolution_x = float(dataset.res[0])
         resolution_y = float(dataset.res[1])
         if not np.isclose(resolution_x, resolution_y, atol=1e-9):
             raise ValueError("Эксперимент ожидает квадратные пиксели эталона")
         reference_rgb = np.moveaxis(dataset.read((1, 2, 3)), 0, -1)
-    return reference_rgb, resolution_x
+        return (
+            reference_rgb,
+            resolution_x,
+            dataset.transform,
+            dataset.crs.to_string(),
+        )
 
 
-def run_grid() -> list[dict[str, Any]]:
-    """Выполняет 25 независимых привязок на разных участках эталона."""
+def run_grid() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Выполняет 25 привязок и 175 последующих метрических измерений."""
 
-    reference_rgb, reference_resolution_m_per_pixel = load_reference()
+    (
+        reference_rgb,
+        reference_resolution_m_per_pixel,
+        reference_transform,
+        reference_crs,
+    ) = load_reference()
     reference_height, reference_width = reference_rgb.shape[:2]
     footprint_width_px = FOOTPRINT_WIDTH_M / reference_resolution_m_per_pixel
     footprint_height_px = FOOTPRINT_HEIGHT_M / reference_resolution_m_per_pixel
@@ -85,8 +105,13 @@ def run_grid() -> list[dict[str, Any]]:
         footprint_size_pixels=footprint_height_px,
         travel_fractions=TRAVEL_FRACTIONS,
     )
+    controls = build_poc_control_definitions(
+        frame_width_pixels=OUTPUT_WIDTH_PIXELS,
+        frame_height_pixels=OUTPUT_HEIGHT_PIXELS,
+    )
 
     rows: list[dict[str, Any]] = []
+    control_rows: list[dict[str, Any]] = []
     for grid_y_index, (travel_y_fraction, center_y_px) in enumerate(
         zip(TRAVEL_FRACTIONS, center_y_positions, strict=True)
     ):
@@ -152,6 +177,41 @@ def run_grid() -> list[dict[str, Any]]:
                 frame_width_pixels=OUTPUT_WIDTH_PIXELS,
                 frame_height_pixels=OUTPUT_HEIGHT_PIXELS,
             )
+            metric_evaluations = evaluate_metric_controls(
+                controls,
+                estimated_homography_frame_to_reference=(
+                    alignment.homography_frame_to_reference
+                ),
+                true_homography_frame_to_reference=(
+                    synthetic.homography_frame_to_reference
+                ),
+                reference_transform=reference_transform,
+                reference_crs=reference_crs,
+                reference_width_pixels=reference_width,
+                reference_height_pixels=reference_height,
+            )
+            metric_result_rows = [
+                metric_evaluation_to_dict(result) for result in metric_evaluations
+            ]
+            for metric_row in metric_result_rows:
+                control_rows.append(
+                    {
+                        "grid_x_index": grid_x_index,
+                        "grid_y_index": grid_y_index,
+                        "travel_x_fraction": travel_x_fraction,
+                        "travel_y_fraction": travel_y_fraction,
+                        "center_reference_x_px": center_x_px,
+                        "center_reference_y_px": center_y_px,
+                        **metric_row,
+                    }
+                )
+
+            segment_metric_rows = [
+                row for row in metric_result_rows if row["kind"] == "segment"
+            ]
+            polygon_metric_rows = [
+                row for row in metric_result_rows if row["kind"] == "polygon"
+            ]
             rows.append(
                 {
                     **common_values,
@@ -176,11 +236,24 @@ def run_grid() -> list[dict[str, Any]]:
                     "max_transfer_error_reference_px": evaluation.max_error_pixels,
                     "mean_transfer_error_meters": evaluation.mean_error_meters,
                     "max_transfer_error_meters": evaluation.max_error_meters,
+                    "max_control_vertex_error_meters": max(
+                        row["max_vertex_position_error_meters"]
+                        for row in metric_result_rows
+                    ),
+                    "max_segment_absolute_error_meters": max(
+                        row["absolute_error"] for row in segment_metric_rows
+                    ),
+                    "max_polygon_absolute_error_square_meters": max(
+                        row["absolute_error"] for row in polygon_metric_rows
+                    ),
+                    "max_control_relative_error_percent": max(
+                        row["relative_error_percent"] for row in metric_result_rows
+                    ),
                     "processing_time_seconds": alignment.processing_time_seconds,
                 }
             )
 
-    return rows
+    return rows, control_rows
 
 
 def _scenario_location(row: dict[str, Any]) -> dict[str, Any]:
@@ -199,7 +272,30 @@ def _scenario_location(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _metric_control_summary(row: dict[str, Any]) -> dict[str, Any]:
+    """Сокращает подробную метрическую строку для JSON-сводки."""
+
+    return {
+        "grid_index_xy": [row["grid_x_index"], row["grid_y_index"]],
+        "travel_fraction_xy": [
+            row["travel_x_fraction"],
+            row["travel_y_fraction"],
+        ],
+        "control_name": row["name"],
+        "kind": row["kind"],
+        "true_value": row["true_value"],
+        "estimated_value": row["estimated_value"],
+        "unit": row["unit"],
+        "absolute_error": row["absolute_error"],
+        "relative_error_percent": row["relative_error_percent"],
+        "max_vertex_position_error_meters": row["max_vertex_position_error_meters"],
+    }
+
+
+def build_summary(
+    rows: list[dict[str, Any]],
+    control_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Создаёт фактическую сводку без ретроспективного критерия успеха."""
 
     estimated_rows = [row for row in rows if row["estimation_returned"]]
@@ -222,6 +318,7 @@ def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "estimation_returned_count": len(estimated_rows),
         "explicit_failure_count": len(failed_rows),
         "failed_locations": [_scenario_location(row) for row in failed_rows],
+        "metric_control_row_count": len(control_rows),
         "note": (
             "Факт возврата гомографии не равен прохождению. Численный порог "
             "годности в этом эксперименте намеренно отсутствует."
@@ -281,14 +378,38 @@ def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "max_transfer_error_reference_px"
             ],
         }
+    if control_rows:
+        segment_rows = [row for row in control_rows if row["kind"] == "segment"]
+        polygon_rows = [row for row in control_rows if row["kind"] == "polygon"]
+        summary["metric_measurements"] = {
+            "largest_vertex_position_error": _metric_control_summary(
+                max(
+                    control_rows,
+                    key=lambda row: row["max_vertex_position_error_meters"],
+                )
+            ),
+            "largest_absolute_segment_error": _metric_control_summary(
+                max(segment_rows, key=lambda row: row["absolute_error"])
+            ),
+            "largest_relative_segment_error": _metric_control_summary(
+                max(segment_rows, key=lambda row: row["relative_error_percent"])
+            ),
+            "largest_absolute_polygon_error": _metric_control_summary(
+                max(polygon_rows, key=lambda row: row["absolute_error"])
+            ),
+            "largest_relative_polygon_error": _metric_control_summary(
+                max(polygon_rows, key=lambda row: row["relative_error_percent"])
+            ),
+        }
     return summary
 
 
 def save_table_and_summary(
     rows: list[dict[str, Any]],
+    control_rows: list[dict[str, Any]],
     summary: dict[str, Any],
 ) -> None:
-    """Сохраняет подробные строки и сводку в игнорируемый каталог outputs."""
+    """Сохраняет сценарии, измерения и сводку в каталог ``outputs``."""
 
     OUTPUT_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     field_names = sorted({key for row in rows for key in row})
@@ -296,6 +417,20 @@ def save_table_and_summary(
         writer = csv.DictWriter(output_file, fieldnames=field_names)
         writer.writeheader()
         writer.writerows(rows)
+
+    metric_field_names = sorted({key for row in control_rows for key in row})
+    with OUTPUT_METRIC_CSV_PATH.open(
+        "w",
+        encoding="utf-8",
+        newline="",
+    ) as output_file:
+        # В нормальном прогоне здесь 175 строк. Условие оставляет функцию
+        # корректной и при полном отказе всех привязок: создаётся пустой файл,
+        # а не CSV с искусственно придуманной схемой.
+        if metric_field_names:
+            writer = csv.DictWriter(output_file, fieldnames=metric_field_names)
+            writer.writeheader()
+            writer.writerows(control_rows)
 
     with OUTPUT_SUMMARY_PATH.open("w", encoding="utf-8") as output_file:
         json.dump(summary, output_file, ensure_ascii=False, indent=2)
@@ -395,17 +530,80 @@ def save_plot(rows: list[dict[str, Any]]) -> None:
     plt.close(figure)
 
 
+def save_metric_plot(rows: list[dict[str, Any]]) -> None:
+    """Показывает, как метрическая ошибка меняется по пространственной сетке.
+
+    Каждая ячейка агрегирует семь контрольных фигур соответствующего кадра.
+    Цвета здесь означают только численную величину: они намеренно не кодируют
+    категории «хорошо» и «плохо», потому что допустимый порог ещё не задан.
+    """
+
+    figure, axes = plt.subplots(2, 2, figsize=(14, 12))
+    plot_specs = (
+        (
+            "max_control_vertex_error_meters",
+            "Максимальная ошибка вершины, м",
+            ".5f",
+            "magma",
+        ),
+        (
+            "max_segment_absolute_error_meters",
+            "Максимальная абсолютная ошибка длины, м",
+            ".5f",
+            "magma",
+        ),
+        (
+            "max_polygon_absolute_error_square_meters",
+            "Максимальная абсолютная ошибка площади, м²",
+            ".4f",
+            "magma",
+        ),
+        (
+            "max_control_relative_error_percent",
+            "Максимальная относительная ошибка фигуры, %",
+            ".5f",
+            "magma",
+        ),
+    )
+    for axis, (key, title, number_format, color_map) in zip(
+        axes.ravel(),
+        plot_specs,
+        strict=True,
+    ):
+        _draw_heatmap(
+            axis,
+            _metric_matrix(rows, key),
+            title=title,
+            number_format=number_format,
+            color_map=color_map,
+        )
+
+    figure.suptitle(
+        "Метрический контроль 5 × 5: семь фигур в каждом положении кадра",
+        fontsize=15,
+    )
+    figure.tight_layout()
+    figure.savefig(OUTPUT_METRIC_PLOT_PATH, dpi=160)
+    plt.close(figure)
+
+
 def main() -> None:
     """Выполняет эксперимент и сохраняет воспроизводимые артефакты."""
 
-    rows = run_grid()
-    summary = build_summary(rows)
-    save_table_and_summary(rows, summary)
+    rows, control_rows = run_grid()
+    summary = build_summary(rows, control_rows)
+    save_table_and_summary(rows, control_rows, summary)
     save_plot(rows)
+    save_metric_plot(rows)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"Подробные строки: {OUTPUT_CSV_PATH.relative_to(PROJECT_ROOT)}")
+    print(f"Подробные измерения: {OUTPUT_METRIC_CSV_PATH.relative_to(PROJECT_ROOT)}")
     print(f"Сводка: {OUTPUT_SUMMARY_PATH.relative_to(PROJECT_ROOT)}")
     print(f"Тепловая карта: {OUTPUT_PLOT_PATH.relative_to(PROJECT_ROOT)}")
+    print(
+        "Метрическая тепловая карта: "
+        f"{OUTPUT_METRIC_PLOT_PATH.relative_to(PROJECT_ROOT)}"
+    )
 
 
 if __name__ == "__main__":
