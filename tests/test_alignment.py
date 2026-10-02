@@ -10,6 +10,7 @@ from aerial_mapper.alignment import (
     align_frame_to_reference,
 )
 from aerial_mapper.evaluation import evaluate_homography
+from aerial_mapper.quality import analyze_alignment_quality
 from aerial_mapper.synthetic import SyntheticFrameSpec, generate_synthetic_frame
 
 
@@ -86,6 +87,30 @@ def test_sift_ransac_recovers_hidden_homography() -> None:
     assert alignment.inlier_spatial_coverage_fraction > 0.25
     assert evaluation.mean_error_pixels < 0.5
     assert evaluation.max_error_pixels < 1.0
+
+    quality = analyze_alignment_quality(
+        alignment,
+        frame_width_pixels=synthetic.spec.output_width_pixels,
+        frame_height_pixels=synthetic.spec.output_height_pixels,
+        random_seed=17,
+    )
+    repeated_quality = analyze_alignment_quality(
+        alignment,
+        frame_width_pixels=synthetic.spec.output_width_pixels,
+        frame_height_pixels=synthetic.spec.output_height_pixels,
+        random_seed=17,
+    )
+
+    # Здесь нет порога «хорошей привязки»: тест проверяет диапазоны, единицы и
+    # воспроизводимость самого измерительного инструмента. Допустимые границы
+    # будут определяться только на независимой валидационной серии.
+    assert 0 < quality.occupied_grid_cells <= quality.grid_rows * quality.grid_columns
+    assert 0.0 < quality.grid_occupancy_fraction <= 1.0
+    assert 0.0 <= quality.horizontal_span_fraction <= 1.0
+    assert 0.0 <= quality.vertical_span_fraction <= 1.0
+    assert quality.stability_trials_succeeded > 0
+    assert quality.stability_p95_max_corner_shift_reference_px is not None
+    assert quality == repeated_quality
 
 
 def test_evaluation_is_independent_of_homography_matrix_scale() -> None:

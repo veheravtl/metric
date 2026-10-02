@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 
 from aerial_mapper.alignment import SiftRansacConfig, align_frame_to_reference
 from aerial_mapper.evaluation import evaluate_homography
+from aerial_mapper.quality import analyze_alignment_quality
 from aerial_mapper.synthetic import SyntheticFrameSpec, generate_synthetic_frame
 from aerial_mapper.visualization import (
     build_reverse_overlay,
@@ -96,6 +97,11 @@ def render_experiment(
         synthetic.image_rgb,
         config=alignment_config,
     )
+    quality = analyze_alignment_quality(
+        alignment,
+        frame_width_pixels=spec.output_width_pixels,
+        frame_height_pixels=spec.output_height_pixels,
+    )
     evaluation = evaluate_homography(
         alignment.homography_frame_to_reference,
         synthetic.homography_frame_to_reference,
@@ -174,6 +180,54 @@ def render_experiment(
                 alignment.homography_frame_to_reference,
                 8,
             ).tolist(),
+        },
+        "runtime_quality_diagnostics": {
+            "grid_shape": [quality.grid_rows, quality.grid_columns],
+            "occupied_grid_cells": quality.occupied_grid_cells,
+            "grid_occupancy_fraction": round(
+                quality.grid_occupancy_fraction,
+                4,
+            ),
+            "horizontal_inlier_span_fraction": round(
+                quality.horizontal_span_fraction,
+                4,
+            ),
+            "vertical_inlier_span_fraction": round(
+                quality.vertical_span_fraction,
+                4,
+            ),
+            "stability_trials": {
+                "requested": quality.stability_trials_requested,
+                "succeeded": quality.stability_trials_succeeded,
+            },
+            "stability_median_max_corner_shift_reference_px": (
+                None
+                if quality.stability_median_max_corner_shift_reference_px is None
+                else round(
+                    quality.stability_median_max_corner_shift_reference_px,
+                    4,
+                )
+            ),
+            "stability_p95_max_corner_shift_reference_px": (
+                None
+                if quality.stability_p95_max_corner_shift_reference_px is None
+                else round(
+                    quality.stability_p95_max_corner_shift_reference_px,
+                    4,
+                )
+            ),
+            "stability_max_corner_shift_reference_px": (
+                None
+                if quality.stability_max_corner_shift_reference_px is None
+                else round(
+                    quality.stability_max_corner_shift_reference_px,
+                    4,
+                )
+            ),
+            "note": (
+                "Эти величины не используют истинную гомографию и доступны на "
+                "реальном кадре. Порог годности намеренно ещё не задан."
+            ),
         },
         "evaluation_after_alignment": {
             "control_grid_points": evaluation.control_point_count,

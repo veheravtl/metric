@@ -20,6 +20,7 @@ import rasterio
 
 from aerial_mapper.alignment import AlignmentFailure, align_frame_to_reference
 from aerial_mapper.evaluation import evaluate_homography
+from aerial_mapper.quality import analyze_alignment_quality
 from aerial_mapper.synthetic import SyntheticFrameSpec, generate_synthetic_frame
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -134,6 +135,11 @@ def run_sweep() -> list[dict[str, Any]]:
             frame_height_pixels=OUTPUT_HEIGHT_PIXELS,
             reference_resolution_m_per_pixel=reference_resolution_m_per_pixel,
         )
+        quality = analyze_alignment_quality(
+            alignment,
+            frame_width_pixels=OUTPUT_WIDTH_PIXELS,
+            frame_height_pixels=OUTPUT_HEIGHT_PIXELS,
+        )
         rows.append(
             {
                 **common_values,
@@ -144,6 +150,15 @@ def run_sweep() -> list[dict[str, Any]]:
                 "inlier_ratio": alignment.inlier_ratio,
                 "inlier_spatial_coverage_fraction": (
                     alignment.inlier_spatial_coverage_fraction
+                ),
+                "occupied_grid_cells": quality.occupied_grid_cells,
+                "grid_cell_count": quality.grid_rows * quality.grid_columns,
+                "grid_occupancy_fraction": quality.grid_occupancy_fraction,
+                "horizontal_inlier_span_fraction": (quality.horizontal_span_fraction),
+                "vertical_inlier_span_fraction": quality.vertical_span_fraction,
+                "stability_trials_succeeded": quality.stability_trials_succeeded,
+                "stability_p95_max_corner_shift_reference_px": (
+                    quality.stability_p95_max_corner_shift_reference_px
                 ),
                 "mean_transfer_error_reference_px": evaluation.mean_error_pixels,
                 "max_transfer_error_reference_px": evaluation.max_error_pixels,
@@ -195,6 +210,16 @@ def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "ransac_inliers": worst_row["ransac_inliers"],
                     "inlier_spatial_coverage_fraction": worst_row[
                         "inlier_spatial_coverage_fraction"
+                    ],
+                    "grid_occupancy_fraction": worst_row["grid_occupancy_fraction"],
+                    "horizontal_inlier_span_fraction": worst_row[
+                        "horizontal_inlier_span_fraction"
+                    ],
+                    "vertical_inlier_span_fraction": worst_row[
+                        "vertical_inlier_span_fraction"
+                    ],
+                    "stability_p95_max_corner_shift_reference_px": worst_row[
+                        "stability_p95_max_corner_shift_reference_px"
                     ],
                     "mean_transfer_error_reference_px": worst_row[
                         "mean_transfer_error_reference_px"
@@ -287,6 +312,24 @@ def save_plot(rows: list[dict[str, Any]]) -> None:
         [row["inlier_spatial_coverage_fraction"] for row in estimated_rows],
         marker="o",
         label="Покрытие площади кадра",
+    )
+    coverage_axis.plot(
+        multipliers,
+        [row["grid_occupancy_fraction"] for row in estimated_rows],
+        marker="o",
+        label="Занято ячеек сетки",
+    )
+    coverage_axis.plot(
+        multipliers,
+        [
+            min(
+                row["horizontal_inlier_span_fraction"],
+                row["vertical_inlier_span_fraction"],
+            )
+            for row in estimated_rows
+        ],
+        marker="o",
+        label="Меньший размах по X/Y",
     )
     coverage_axis.set_ylabel("Доля от 0 до 1")
     coverage_axis.set_xlabel("Множитель физического охвата относительно 120 × 90 м")
