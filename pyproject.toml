@@ -12,6 +12,8 @@ dependencies = [
     "matplotlib>=3.9,<4",
     "numpy>=2.0,<3",
     "opencv-python>=4.10,<6",
+    "pyproj>=3.7,<4",
+    "rasterio>=1.4,<2",
 ]
 
 [dependency-groups]

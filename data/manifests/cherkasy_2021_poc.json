@@ -1,0 +1,38 @@
+{
+  "id": "cherkasy_2021_poc",
+  "purpose": "Временный эталонный растр только для проверки реализуемости геометрического конвейера",
+  "source": {
+    "title": "Ортофотоплан города Черкассы по материалам аэрофотосъёмки апреля 2021 года",
+    "map_service_url": "https://mgis.chmr.gov.ua/server/rest/services/base_map/Orthophotoplan_2021_WGS84/MapServer",
+    "image_layer_id": 4,
+    "capture_period": "2021-04-10/2021-04-11",
+    "attribution": "Геопортал градостроительного кадастра города Черкассы; ТОВ \"Аналітика\"",
+    "attribution_url": "https://mgis.chmr.gov.ua/portal/home/",
+    "permission_reference": "https://zakon.rada.gov.ua/laws/show/2939-17",
+    "license_status": "Публичный официальный картографический сервис. Условия повторного распространения самого растра требуют отдельной проверки, поэтому GeoTIFF не коммитится."
+  },
+  "selection": {
+    "center_wgs84": {
+      "longitude": 32.048364,
+      "latitude": 49.446279
+    },
+    "output_crs": "EPSG:32636",
+    "width_m": 250.0,
+    "height_m": 250.0,
+    "resolution_m_per_pixel": 0.1
+  },
+  "storage": {
+    "raster_path": "data/reference/cherkasy_2021_poc.tif",
+    "runtime_metadata_path": "data/reference/cherkasy_2021_poc.metadata.json",
+    "committed_to_git": false
+  },
+  "replacement_contract": {
+    "description": "В реальном эксперименте этот источник заменяется снимком полигона и контрольными точками в локальной метрической системе координат.",
+    "required_inputs": [
+      "эталонное изображение полигона",
+      "не менее четырёх пар пиксельных и локальных координат",
+      "единицы и направление осей локальной системы",
+      "независимые контрольные точки для оценки ошибки"
+    ]
+  }
+}
