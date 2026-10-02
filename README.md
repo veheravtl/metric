@@ -503,31 +503,6 @@ aerial-map-measurement/
 До успешного завершения этого шага не следует добавлять CLIP, GUI, видео,
 Grounding DINO или поддержку Raspberry Pi.
 
-## Подготовка среды разработки
-
-Проект использует Python 3.11–3.13 и менеджер окружения `uv`. Выбранный подход
-хранит прямые зависимости в `pyproject.toml`, фиксирует точные разрешённые версии
-в `uv.lock` и создаёт локальное виртуальное окружение `.venv`.
-
-Первичная установка и проверка:
-
-```bash
-uv sync
-uv run pytest
-uv run ruff check .
-```
-
-`uv sync` создаёт `.venv`, если окружения ещё нет, и приводит его в соответствие
-с lock-файлом. Активировать окружение для `uv run` не требуется. Если нужна
-обычная интерактивная работа с Python, окружение можно активировать вручную:
-
-```bash
-source .venv/bin/activate
-```
-
-Обязательные правила учебной работы, исследования источников, написания кода и
-использования команды `бко` находятся в [`AGENTS.md`](AGENTS.md).
-
 ## Справочные материалы
 
 - [Программа курса](../cv_course/UA_COMPUTER-VISION-ADVANCED/README.md)
@@ -537,3 +512,4 @@ source .venv/bin/activate
 - [LightGlue repository](https://github.com/cvg/LightGlue)
 - [OpenAerialMap](https://openaerialmap.org/)
 - [UAV-VisLoc dataset](https://github.com/IntelliSensing/UAV-VisLoc)
+
