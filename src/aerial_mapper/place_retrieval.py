@@ -40,6 +40,22 @@ class RetrievalResult:
     similarities: FloatMatrix
 
 
+@dataclass(frozen=True)
+class SequenceScoringResult:
+    """Сходство после проверки коротких траекторий в матрице кадров.
+
+    ``query_center_indices`` связывает строки результата с исходной матрицей:
+    крайние запросы, для которых полного окна нет, в результат не входят.
+    Для каждой пары запрос/кандидат также сохраняются направление и скорость
+    траектории, давшей максимальную среднюю оценку.
+    """
+
+    query_center_indices: NDArray[np.int64]
+    similarities: FloatMatrix
+    best_directions: NDArray[np.int8]
+    best_velocity_ratios: FloatMatrix
+
+
 class DinoV2SmallPatchExtractor:
     """Извлекает нормализованные patch-токены официальной DINOv2-S/14.
 
@@ -71,6 +87,7 @@ class DinoV2SmallPatchExtractor:
             trust_repo=True,
         ).eval()
 
+    @property
     def cache_signature(self) -> str:
         """Идентифицирует модель и размер входа для безопасного кэша."""
 
@@ -236,4 +253,97 @@ def rank_database(
     return RetrievalResult(
         database_indices=ranked_indices.astype(np.int64),
         similarities=similarities[ranked_indices].astype(np.float32),
+    )
+
+
+def score_similarity_sequences(
+    frame_similarities: FloatMatrix,
+    *,
+    window_length: int,
+    velocity_ratios: tuple[float, ...],
+    directions: tuple[int, ...] = (-1, 1),
+) -> SequenceScoringResult:
+    """Усредняет покадровое сходство вдоль допустимых коротких траекторий.
+
+    Вход имеет форму ``(число Repeat-кадров, число Teach-кадров)``. Для каждого
+    центрального Repeat-кадра и каждого Teach-кандидата функция рассматривает
+    несколько линий в этой матрице. Направление ``+1`` означает одинаковый
+    порядок двух проходов, ``-1`` — встречный. Скорость задаёт, на сколько
+    позиций Teach-базы смещается линия за один Repeat-keyframe.
+
+    Координаты, GPS и правильный ответ функции неизвестны. Это принципиально:
+    последовательность может менять рейтинг только на основании изображений и
+    порядка кадров.
+    """
+
+    if frame_similarities.ndim != 2 or not np.all(np.isfinite(frame_similarities)):
+        raise ValueError("Матрица покадрового сходства должна быть конечной и 2D")
+    query_count, database_count = frame_similarities.shape
+    if window_length < 3 or window_length % 2 == 0 or window_length > query_count:
+        raise ValueError("Длина окна должна быть нечётной и находиться в [3, Q]")
+    if not velocity_ratios or any(
+        not np.isfinite(velocity) or velocity < 0.0 for velocity in velocity_ratios
+    ):
+        raise ValueError("Скорости должны быть конечными неотрицательными числами")
+    if not directions or any(direction not in (-1, 1) for direction in directions):
+        raise ValueError("Направления могут быть только -1 или +1")
+
+    half_window = window_length // 2
+    query_offsets = np.arange(-half_window, half_window + 1, dtype=np.int64)
+    query_centers = np.arange(
+        half_window,
+        query_count - half_window,
+        dtype=np.int64,
+    )
+    sequence_similarities = np.full(
+        (query_centers.size, database_count),
+        -np.inf,
+        dtype=np.float32,
+    )
+    best_directions = np.zeros_like(sequence_similarities, dtype=np.int8)
+    best_velocities = np.full_like(sequence_similarities, np.nan, dtype=np.float32)
+    database_centers = np.arange(database_count, dtype=np.int64)
+
+    for direction in directions:
+        for velocity in velocity_ratios:
+            # Округление переводит непрерывное отношение скоростей в индексы
+            # разреженной базы. Повторы индекса при скорости 0 или 0,5 допустимы:
+            # они моделируют зависание или более медленный Teach/Repeat-проход.
+            database_offsets = (
+                np.rint(query_offsets * velocity).astype(np.int64) * direction
+            )
+            database_paths = database_centers[:, None] + database_offsets[None, :]
+            valid_database_centers = np.all(
+                (database_paths >= 0) & (database_paths < database_count),
+                axis=1,
+            )
+            valid_center_indices = database_centers[valid_database_centers]
+            valid_paths = database_paths[valid_database_centers]
+            if valid_center_indices.size == 0:
+                continue
+
+            for output_row, query_center in enumerate(query_centers):
+                query_indices = query_center + query_offsets
+                path_scores = np.mean(
+                    frame_similarities[query_indices[None, :], valid_paths],
+                    axis=1,
+                )
+                previous_scores = sequence_similarities[
+                    output_row, valid_center_indices
+                ]
+                improved = path_scores > previous_scores
+                improved_centers = valid_center_indices[improved]
+                sequence_similarities[output_row, improved_centers] = path_scores[
+                    improved
+                ]
+                best_directions[output_row, improved_centers] = direction
+                best_velocities[output_row, improved_centers] = velocity
+
+    if not np.all(np.isfinite(sequence_similarities)):
+        raise RuntimeError("Не для всех кандидатов нашлась допустимая траектория")
+    return SequenceScoringResult(
+        query_center_indices=query_centers,
+        similarities=sequence_similarities,
+        best_directions=best_directions,
+        best_velocity_ratios=best_velocities,
     )
