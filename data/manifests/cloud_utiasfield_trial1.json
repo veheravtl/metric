@@ -1,0 +1,29 @@
+{
+  "id": "cloud_utiasfield_trial1",
+  "purpose": "Smoke test v2: реальная Teach/Repeat-проверка текущего SIFT + RANSAC без подстройки по результатам",
+  "source": {
+    "title": "CLOUD — Canadian Longterm Outdoor UAV Dataset, UTIAS Field trial 1",
+    "dataset_page": "https://www.dynsyslab.org/cloud-dataset/",
+    "government_catalog": "https://open.canada.ca/data/en/dataset/45104589-ec39-4240-898f-2c11f28bd513",
+    "tools_repository": "https://github.com/melissagreeff204/m600_dataset_tools",
+    "authors": "Melissa Greeff and Angela P. Schoellig"
+  },
+  "license_audit": {
+    "status": "requires_clarification_before_redistribution",
+    "dataset_page_label": "MIT License",
+    "government_catalog_label": "Open Government Licence - Canada",
+    "decision_for_this_experiment": "Использовать локально только собственные Teach/Repeat-кадры архива; не использовать Google Earth; не коммитить и не перераспространять данные."
+  },
+  "storage_directory": "data/queries/cloud",
+  "archive": {
+    "filename": "utiasfield_trial1.zip",
+    "url": "ftp://asrl3.utias.utoronto.ca/M600/utiasfield_trial1.zip",
+    "size_bytes": 369295219,
+    "sha256": "9bed6fb16067a918f8fdbffdc6958f24bfe0055a387da1b78a5a1f906c4f8e8c"
+  },
+  "extraction": {
+    "directory": "utiasfield_trial1",
+    "include": ["overview.txt", "teach/*.csv", "teach/images/*.png", "repeat/*.csv", "repeat/images/*.png"],
+    "exclude": ["*.avi"]
+  }
+}

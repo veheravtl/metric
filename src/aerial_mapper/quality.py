@@ -31,6 +31,10 @@ class AlignmentQualityDiagnostics:
     обнаруживают почти линейную конфигурацию точек. Большая площадь или хороший
     размах только по одной оси не гарантируют устойчивую гомографию.
 
+    ``inlier_reprojection_*`` описывает остаточное расхождение согласованных
+    точек после применения найденной матрицы. Это внутренняя согласованность в
+    пикселях эталона, а не ошибка относительно независимой истины.
+
     Последние поля измеряют чувствительность решения к данным. Из inlier-пар
     несколько раз исключается случайная доля, гомография оценивается заново, а
     затем её четыре угла сравниваются с углами исходной оценки. Большой сдвиг
@@ -44,6 +48,9 @@ class AlignmentQualityDiagnostics:
     grid_occupancy_fraction: float
     horizontal_span_fraction: float
     vertical_span_fraction: float
+    inlier_reprojection_median_reference_px: float
+    inlier_reprojection_p95_reference_px: float
+    inlier_reprojection_max_reference_px: float
     stability_trials_requested: int
     stability_trials_succeeded: int
     stability_median_max_corner_shift_reference_px: float | None
@@ -130,6 +137,15 @@ def analyze_alignment_quality(
     )
     vertical_span = float(np.ptp(inlier_frame_points[:, 1]) / (frame_height_pixels - 1))
 
+    projected_inlier_points = cv2.perspectiveTransform(
+        inlier_frame_points.reshape(1, -1, 2),
+        alignment.homography_frame_to_reference,
+    ).reshape(-1, 2)
+    reprojection_errors = np.linalg.norm(
+        projected_inlier_points - inlier_reference_points,
+        axis=1,
+    )
+
     full_solution_corners = _project_frame_corners(
         alignment.homography_frame_to_reference,
         frame_width_pixels=frame_width_pixels,
@@ -192,6 +208,11 @@ def analyze_alignment_quality(
         grid_occupancy_fraction=occupied_cells / grid_cell_count,
         horizontal_span_fraction=horizontal_span,
         vertical_span_fraction=vertical_span,
+        inlier_reprojection_median_reference_px=float(np.median(reprojection_errors)),
+        inlier_reprojection_p95_reference_px=float(
+            np.percentile(reprojection_errors, 95)
+        ),
+        inlier_reprojection_max_reference_px=float(np.max(reprojection_errors)),
         stability_trials_requested=stability_trials,
         stability_trials_succeeded=len(maximum_corner_shifts),
         stability_median_max_corner_shift_reference_px=median_shift,

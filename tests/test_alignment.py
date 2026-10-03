@@ -108,6 +108,15 @@ def test_sift_ransac_recovers_hidden_homography() -> None:
     assert 0.0 < quality.grid_occupancy_fraction <= 1.0
     assert 0.0 <= quality.horizontal_span_fraction <= 1.0
     assert 0.0 <= quality.vertical_span_fraction <= 1.0
+    assert quality.inlier_reprojection_median_reference_px >= 0.0
+    assert (
+        quality.inlier_reprojection_p95_reference_px
+        >= quality.inlier_reprojection_median_reference_px
+    )
+    assert (
+        quality.inlier_reprojection_max_reference_px
+        >= quality.inlier_reprojection_p95_reference_px
+    )
     assert quality.stability_trials_succeeded > 0
     assert quality.stability_p95_max_corner_shift_reference_px is not None
     assert quality == repeated_quality

@@ -1,0 +1,23 @@
+{
+  "id": "dinov2_vits14_official",
+  "purpose": "Извлечение локальных визуальных признаков для облегчённого VLAD-поиска по Teach-кадрам",
+  "source": {
+    "title": "DINOv2: Learning Robust Visual Features without Supervision",
+    "repository": "https://github.com/facebookresearch/dinov2",
+    "torch_hub_repository": "facebookresearch/dinov2",
+    "repository_revision": "7764ea0f912e53c92e82eb78a2a1631e92725fc8",
+    "paper": "https://arxiv.org/abs/2304.07193",
+    "license": "Apache License 2.0",
+    "license_url": "https://github.com/facebookresearch/dinov2/blob/main/LICENSE"
+  },
+  "model": {
+    "torch_hub_name": "dinov2_vits14",
+    "weights_url": "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth",
+    "weights_filename": "dinov2_vits14_pretrain.pth",
+    "weights_size_bytes": 88283115,
+    "weights_sha256": "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9",
+    "parameter_count_observed": 22056576,
+    "patch_size_pixels": 14,
+    "patch_descriptor_dimensions": 384
+  }
+}

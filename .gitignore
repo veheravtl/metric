@@ -29,6 +29,7 @@ htmlcov/
 data/reference/*
 data/queries/*
 outputs/*
+data/models/*
 
 # Пустые каталоги сохраняются через специальные файлы-маркеры.
 !data/reference/.gitkeep
