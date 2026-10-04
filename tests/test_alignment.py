@@ -153,3 +153,40 @@ def test_alignment_refuses_blank_images() -> None:
 
     with pytest.raises(AlignmentFailure, match="недостаточно SIFT-признаков"):
         align_frame_to_reference(blank_reference, blank_frame)
+
+
+def test_reference_feature_mask_limits_teach_keypoints() -> None:
+    """Разметка Teach должна ограничивать признаки без маски Repeat-кадра."""
+
+    reference = make_unique_textured_reference(size=700)
+    frame = reference.copy()
+    mask = np.zeros(reference.shape[:2], dtype=np.uint8)
+    mask[:, :350] = 255
+
+    alignment = align_frame_to_reference(
+        reference,
+        frame,
+        config=SiftRansacConfig(max_features_per_image=2_000),
+        reference_feature_mask=mask,
+    )
+
+    rounded = np.rint(alignment.reference_points_px).astype(np.int64)
+    assert alignment.inlier_count > 20
+    assert np.all(mask[rounded[:, 1], rounded[:, 0]] != 0)
+    assert alignment.reference_keypoint_count < alignment.frame_keypoint_count
+
+
+@pytest.mark.parametrize(
+    "mask",
+    [
+        np.ones((100, 100), dtype=np.uint8),
+        np.ones((500, 500), dtype=np.bool_),
+        np.zeros((500, 500), dtype=np.uint8),
+    ],
+)
+def test_reference_feature_mask_rejects_invalid_input(mask: np.ndarray) -> None:
+    """Неверная или пустая Teach-маска не должна молча игнорироваться."""
+
+    image = np.zeros((500, 500, 3), dtype=np.uint8)
+    with pytest.raises(ValueError, match="Маска признаков эталона"):
+        align_frame_to_reference(image, image, reference_feature_mask=mask)

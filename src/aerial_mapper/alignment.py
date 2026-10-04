@@ -101,6 +101,31 @@ def _validate_rgb_image(image_rgb: RgbImage, *, name: str) -> None:
         raise ValueError(f"{name} должен иметь тип uint8")
 
 
+def _validate_feature_mask(
+    mask: NDArray[np.uint8] | None,
+    *,
+    image_shape: tuple[int, int],
+) -> None:
+    """Проверяет маску допустимой области поиска признаков на эталоне.
+
+    Ненулевой пиксель разрешает SIFT ставить центр ключевой точки в этом месте.
+    Маска относится только к размеченному Teach-кадру; наличие аналогичной
+    разметки неизвестного Repeat-кадра алгоритмом не предполагается.
+    """
+
+    if mask is None:
+        return
+    if mask.ndim != 2 or mask.shape != image_shape:
+        raise ValueError(
+            "Маска признаков эталона должна иметь форму (height, width), "
+            "совпадающую с RGB-эталоном"
+        )
+    if mask.dtype != np.uint8:
+        raise ValueError("Маска признаков эталона должна иметь тип uint8")
+    if not np.any(mask):
+        raise ValueError("Маска признаков эталона не содержит разрешённых пикселей")
+
+
 def _calculate_frame_coverage(
     frame_points_px: FloatPoints,
     inlier_mask: NDArray[np.bool_],
@@ -130,6 +155,7 @@ def align_frame_to_reference(
     frame_rgb: RgbImage,
     *,
     config: SiftRansacConfig | None = None,
+    reference_feature_mask: NDArray[np.uint8] | None = None,
 ) -> AlignmentResult:
     """Независимо оценивает гомографию из кадра в полный эталон.
 
@@ -139,6 +165,11 @@ def align_frame_to_reference(
     лучше второго. RANSAC затем отбрасывает пары, не согласующиеся с одной
     плоской проективной моделью.
 
+    Необязательная 8-битная ``reference_feature_mask`` ограничивает только
+    центры SIFT-признаков эталона. В Teach--Repeat постановке это позволяет
+    использовать заранее размеченную землю первого кадра, не требуя маски от
+    неизвестного Repeat-кадра.
+
     Функция выбрасывает ``AlignmentFailure`` вместо правдоподобной матрицы,
     когда признаков или соответствий недостаточно.
     """
@@ -147,6 +178,10 @@ def align_frame_to_reference(
     effective_config.validate()
     _validate_rgb_image(reference_rgb, name="Эталон")
     _validate_rgb_image(frame_rgb, name="Кадр")
+    _validate_feature_mask(
+        reference_feature_mask,
+        image_shape=reference_rgb.shape[:2],
+    )
 
     started_at = perf_counter()
     reference_gray = cv2.cvtColor(reference_rgb, cv2.COLOR_RGB2GRAY)
@@ -155,7 +190,7 @@ def align_frame_to_reference(
     sift = cv2.SIFT_create(nfeatures=effective_config.max_features_per_image)
     reference_keypoints, reference_descriptors = sift.detectAndCompute(
         reference_gray,
-        None,
+        reference_feature_mask,
     )
     frame_keypoints, frame_descriptors = sift.detectAndCompute(frame_gray, None)
 

@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "scenario_id": "g7_perspective_teach_repeat",
+  "seed": 20261004,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [52.0, 42.0],
+    "appearance": "planar_metric_texture",
+    "show_control_points": false,
+    "metric_texture": {
+      "width_pixels": 1872,
+      "height_pixels": 1512
+    }
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 960,
+    "height_pixels": 720,
+    "samples": 16,
+    "control_passes": true
+  },
+  "cameras": [
+    {
+      "id": "teach_000",
+      "role": "reference",
+      "projection": "perspective",
+      "location_m": [-7.0, -8.0, 46.0],
+      "target_m": [1.0, 1.0, 0.0],
+      "focal_length_mm": 20.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_near",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [-3.0, -5.0, 43.0],
+      "target_m": [1.0, 1.0, 0.0],
+      "focal_length_mm": 25.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_east",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [7.0, -3.0, 47.0],
+      "target_m": [0.0, 1.0, 0.0],
+      "focal_length_mm": 25.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_north",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [-2.0, 8.0, 45.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "focal_length_mm": 24.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_oblique",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [10.0, -10.0, 39.0],
+      "target_m": [-1.0, 1.0, 0.0],
+      "focal_length_mm": 20.0,
+      "sensor_width_mm": 36.0
+    }
+  ],
+  "objects": [
+    {
+      "id": "central_textured_roof",
+      "kind": "box",
+      "center_m": [0.0, 0.0, 2.5],
+      "size_m": [28.0, 18.2, 5.0],
+      "color_srgb": [0.72, 0.24, 0.14],
+      "appearance": "procedural_texture"
+    }
+  ],
+  "metric_controls": [
+    {
+      "id": "calibration_south",
+      "surface": "ground",
+      "purpose": "calibration",
+      "points_world_m": [[-20.0, -16.0, 0.0], [20.0, -16.0, 0.0]]
+    },
+    {
+      "id": "calibration_north",
+      "surface": "ground",
+      "purpose": "calibration",
+      "points_world_m": [[-20.0, 16.0, 0.0], [20.0, 16.0, 0.0]]
+    },
+    {
+      "id": "calibration_west",
+      "surface": "ground",
+      "purpose": "calibration",
+      "points_world_m": [[-22.0, -12.0, 0.0], [-22.0, 12.0, 0.0]]
+    },
+    {
+      "id": "calibration_east",
+      "surface": "ground",
+      "purpose": "calibration",
+      "points_world_m": [[22.0, -12.0, 0.0], [22.0, 12.0, 0.0]]
+    },
+    {
+      "id": "ground_south_west_6m",
+      "surface": "ground",
+      "purpose": "evaluation",
+      "points_world_m": [[-17.0, -13.0, 0.0], [-11.0, -13.0, 0.0]]
+    },
+    {
+      "id": "ground_south_east_6m",
+      "surface": "ground",
+      "purpose": "evaluation",
+      "points_world_m": [[11.0, -13.0, 0.0], [17.0, -13.0, 0.0]]
+    },
+    {
+      "id": "ground_west_6m",
+      "surface": "ground",
+      "purpose": "evaluation",
+      "points_world_m": [[-18.0, -4.0, 0.0], [-18.0, 2.0, 0.0]]
+    },
+    {
+      "id": "ground_east_6m",
+      "surface": "ground",
+      "purpose": "evaluation",
+      "points_world_m": [[18.0, -2.0, 0.0], [18.0, 4.0, 0.0]]
+    },
+    {
+      "id": "roof_horizontal_12m",
+      "surface": "roof",
+      "purpose": "diagnostic",
+      "points_world_m": [[-6.0, 0.0, 5.0], [6.0, 0.0, 5.0]]
+    },
+    {
+      "id": "roof_vertical_6m",
+      "surface": "roof",
+      "purpose": "diagnostic",
+      "points_world_m": [[0.0, -3.0, 5.0], [0.0, 3.0, 5.0]]
+    }
+  ],
+  "acceptance_thresholds": {
+    "minimum_inlier_count": 35,
+    "minimum_inlier_ratio": 0.5,
+    "minimum_coverage_fraction": 0.18,
+    "maximum_reprojection_p95_px": 2.0,
+    "maximum_stability_p95_corner_shift_px": 5.0,
+    "maximum_point_position_error_m": 0.2,
+    "maximum_segment_absolute_error_m": 0.15,
+    "maximum_segment_relative_error_percent": 2.0
+  },
+  "g7": {
+    "teach_mask_erosion_px": 9,
+    "conditions": [
+      {"id": "clean"},
+      {"id": "shadow_75", "shadow_fraction": 0.75},
+      {
+        "id": "dim_lowres",
+        "exposure_stops": -3.0,
+        "resolution_scale": 0.33
+      }
+    ],
+    "preregistered_success": {
+      "maximum_masked_false_accepts": 0,
+      "minimum_masked_accepted_correct": 1,
+      "baseline_false_accepts_must_be_corrected_or_rejected": true
+    }
+  }
+}
