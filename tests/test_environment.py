@@ -4,6 +4,9 @@
 обнаружить неполную установку окружения до начала экспериментов с гомографией.
 """
 
+import tomllib
+from pathlib import Path
+
 import cv2
 import matplotlib
 import numpy as np
@@ -29,3 +32,18 @@ def test_scientific_dependencies_are_importable() -> None:
     assert sample_image.shape == (2, 2, 3)
     assert cv2.__version__
     assert matplotlib.__version__
+
+
+def test_repository_declares_project_license() -> None:
+    """Проверяем, что зафиксированное лицензионное решение не потерялось.
+
+    Blender-генератор использует ``bpy``, поэтому явная GPL-совместимая лицензия
+    является частью воспроизводимого окружения, а не необязательным описанием.
+    """
+
+    project_metadata = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    license_text = Path("LICENSE").read_text(encoding="utf-8")
+
+    assert project_metadata["project"]["license"] == "GPL-3.0-or-later"
+    assert "GNU GENERAL PUBLIC LICENSE" in license_text
+    assert "Version 3, 29 June 2007" in license_text

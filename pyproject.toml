@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Учебный проект визуальной привязки аэрофотоснимков и измерения местности"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
+license = "GPL-3.0-or-later"
 dependencies = [
     "gradio>=6.29,<7",
     "matplotlib>=3.9,<4",
