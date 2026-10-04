@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "scenario_id": "g0_smoke",
+  "seed": 20261004,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [40.0, 30.0]
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 640,
+    "height_pixels": 480,
+    "samples": 16
+  },
+  "cameras": [
+    {
+      "id": "reference_000",
+      "role": "reference",
+      "projection": "orthographic",
+      "location_m": [0.0, 0.0, 50.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "orthographic_scale_m": 44.0
+    },
+    {
+      "id": "teach_000",
+      "role": "teach",
+      "projection": "perspective",
+      "location_m": [-7.0, -8.0, 24.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "focal_length_mm": 35.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_000",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [-3.0, -5.0, 22.0],
+      "target_m": [1.0, 1.0, 0.0],
+      "focal_length_mm": 35.0,
+      "sensor_width_mm": 36.0
+    }
+  ],
+  "objects": [
+    {
+      "id": "building_001",
+      "kind": "box",
+      "center_m": [7.0, 4.0, 2.5],
+      "size_m": [8.0, 6.0, 5.0],
+      "color_srgb": [0.72, 0.24, 0.14]
+    },
+    {
+      "id": "shed_001",
+      "kind": "box",
+      "center_m": [-11.0, 7.0, 1.5],
+      "size_m": [5.0, 4.0, 3.0],
+      "color_srgb": [0.12, 0.35, 0.72]
+    },
+    {
+      "id": "marker_001",
+      "kind": "cylinder",
+      "center_m": [11.0, -8.0, 0.5],
+      "radius_m": 1.2,
+      "height_m": 1.0,
+      "color_srgb": [0.92, 0.62, 0.08]
+    }
+  ]
+}

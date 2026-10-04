@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "scenario_id": "g3_g6_robustness_template",
+  "seed": 20261004,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [44.0, 34.0],
+    "appearance": "planar_metric_texture",
+    "show_control_points": false,
+    "metric_texture": {
+      "width_pixels": 1584,
+      "height_pixels": 1224
+    }
+  },
+  "reference_map": {
+    "crs": "EPSG:32636",
+    "origin_easting_m": 500000.0,
+    "origin_northing_m": 5200000.0
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 960,
+    "height_pixels": 720,
+    "samples": 16,
+    "control_passes": true
+  },
+  "cameras": [
+    {
+      "id": "reference_000",
+      "role": "reference",
+      "projection": "orthographic",
+      "location_m": [0.0, 0.0, 55.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "orthographic_scale_m": 46.0
+    },
+    {
+      "id": "repeat_000",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [-4.0, -6.0, 40.0],
+      "target_m": [1.0, 1.0, 0.0],
+      "focal_length_mm": 26.0,
+      "sensor_width_mm": 36.0
+    }
+  ],
+  "objects": [],
+  "metric_controls": [
+    {
+      "id": "ground_west_vertical_6m",
+      "surface": "ground",
+      "points_world_m": [[-19.0, -6.0, 0.0], [-19.0, 0.0, 0.0]]
+    },
+    {
+      "id": "ground_south_west_6m",
+      "surface": "ground",
+      "points_world_m": [[-11.0, -12.0, 0.0], [-5.0, -12.0, 0.0]]
+    },
+    {
+      "id": "ground_south_center_6m",
+      "surface": "ground",
+      "points_world_m": [[-6.0, -13.0, 0.0], [0.0, -13.0, 0.0]]
+    },
+    {
+      "id": "ground_south_east_6m",
+      "surface": "ground",
+      "points_world_m": [[8.0, -13.0, 0.0], [14.0, -13.0, 0.0]]
+    }
+  ],
+  "acceptance_thresholds": {
+    "minimum_inlier_count": 35,
+    "minimum_inlier_ratio": 0.5,
+    "minimum_coverage_fraction": 0.18,
+    "maximum_reprojection_p95_px": 2.0,
+    "maximum_stability_p95_corner_shift_px": 5.0,
+    "maximum_point_position_error_m": 0.2,
+    "maximum_segment_absolute_error_m": 0.15,
+    "maximum_segment_relative_error_percent": 2.0
+  },
+  "g3": {
+    "object_height_m": 5.0,
+    "object_widths_m": [0.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0],
+    "object_aspect_ratio_y_to_x": 0.65
+  },
+  "g4": {
+    "base_object_width_m": 14.0,
+    "object_height_m": 5.0,
+    "axes": {
+      "exposure_stops": [-5.0, -3.0, -1.5, 0.0, 1.5, 3.0, 5.0],
+      "shadow_fraction": [0.0, 0.25, 0.5, 0.75, 0.9],
+      "blur_sigma_px": [0.0, 1.0, 2.0, 4.0, 8.0, 12.0],
+      "noise_standard_deviation": [0.0, 5.0, 15.0, 30.0, 60.0, 90.0],
+      "resolution_scale": [1.0, 0.75, 0.5, 0.33, 0.2, 0.125],
+      "click_standard_deviation_px": [0.0, 1.0, 2.0, 4.0, 8.0, 12.0]
+    },
+    "click_trials": 120
+  },
+  "g5": {
+    "cases": [
+      {"id": "c00_clean_open", "object_width_m": 0.0},
+      {"id": "c01_clean_medium", "object_width_m": 14.0},
+      {"id": "c02_clean_crowded", "object_width_m": 26.0},
+      {"id": "c03_dim_medium", "object_width_m": 14.0, "exposure_stops": -3.0},
+      {"id": "c04_bright_medium", "object_width_m": 14.0, "exposure_stops": 3.0},
+      {"id": "c05_blur_medium", "object_width_m": 14.0, "blur_sigma_px": 4.0},
+      {"id": "c06_noise_medium", "object_width_m": 14.0, "noise_standard_deviation": 30.0},
+      {"id": "c07_lowres_medium", "object_width_m": 14.0, "resolution_scale": 0.33},
+      {"id": "c08_shadow_crowded", "object_width_m": 26.0, "shadow_fraction": 0.75},
+      {"id": "c09_blur_noise", "object_width_m": 14.0, "blur_sigma_px": 4.0, "noise_standard_deviation": 30.0},
+      {"id": "c10_dim_lowres_crowded", "object_width_m": 26.0, "exposure_stops": -3.0, "resolution_scale": 0.33},
+      {"id": "c11_severe_all", "object_width_m": 26.0, "exposure_stops": -4.0, "shadow_fraction": 0.75, "blur_sigma_px": 6.0, "noise_standard_deviation": 45.0, "resolution_scale": 0.25}
+    ]
+  },
+  "g6": {
+    "held_out_seed": 20261119,
+    "case_count": 20,
+    "ranges": {
+      "object_width_m": [0.0, 28.0],
+      "object_height_m": [2.0, 6.0],
+      "camera_x_m": [-3.0, 3.0],
+      "camera_y_m": [-3.0, 3.0],
+      "camera_z_m": [44.0, 48.0],
+      "target_x_m": [-0.5, 0.5],
+      "target_y_m": [-0.5, 0.5],
+      "focal_length_mm": [24.0, 26.0],
+      "exposure_stops": [-3.5, 3.5],
+      "shadow_fraction": [0.0, 0.85],
+      "blur_sigma_px": [0.0, 6.0],
+      "noise_standard_deviation": [0.0, 50.0],
+      "resolution_scale": [0.22, 1.0]
+    }
+  }
+}

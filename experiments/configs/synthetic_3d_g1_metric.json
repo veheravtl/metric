@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "scenario_id": "g1_planar_metric_recovery",
+  "seed": 20261004,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [40.0, 30.0],
+    "appearance": "planar_metric_texture",
+    "show_control_points": false,
+    "metric_texture": {
+      "width_pixels": 1440,
+      "height_pixels": 1080
+    }
+  },
+  "reference_map": {
+    "crs": "EPSG:32636",
+    "origin_easting_m": 500000.0,
+    "origin_northing_m": 5200000.0
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 960,
+    "height_pixels": 720,
+    "samples": 16
+  },
+  "cameras": [
+    {
+      "id": "reference_000",
+      "role": "reference",
+      "projection": "orthographic",
+      "location_m": [0.0, 0.0, 50.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "orthographic_scale_m": 31.5
+    },
+    {
+      "id": "repeat_000",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [-4.0, -6.0, 26.0],
+      "target_m": [1.0, 1.0, 0.0],
+      "focal_length_mm": 36.0,
+      "sensor_width_mm": 36.0
+    }
+  ],
+  "objects": [],
+  "metric_controls": [
+    {
+      "id": "horizontal_8m",
+      "points_world_m": [[-4.0, -3.0, 0.0], [4.0, -3.0, 0.0]]
+    },
+    {
+      "id": "vertical_6m",
+      "points_world_m": [[-5.0, -2.0, 0.0], [-5.0, 4.0, 0.0]]
+    },
+    {
+      "id": "diagonal_10_82m",
+      "points_world_m": [[-4.0, 4.0, 0.0], [5.0, -2.0, 0.0]]
+    },
+    {
+      "id": "short_3m",
+      "points_world_m": [[1.0, 1.0, 0.0], [3.4, 2.8, 0.0]]
+    }
+  ],
+  "acceptance_thresholds": {
+    "minimum_inlier_count": 35,
+    "minimum_inlier_ratio": 0.5,
+    "minimum_coverage_fraction": 0.18,
+    "maximum_reprojection_p95_px": 2.0,
+    "maximum_stability_p95_corner_shift_px": 5.0,
+    "maximum_point_position_error_m": 0.2,
+    "maximum_segment_absolute_error_m": 0.15,
+    "maximum_segment_relative_error_percent": 2.0
+  }
+}
