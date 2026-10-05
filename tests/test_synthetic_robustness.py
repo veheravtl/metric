@@ -134,3 +134,25 @@ def test_g3_g6_protocol_keeps_calibration_and_held_out_sections_separate() -> No
     assert protocol["g6"]["held_out_seed"] != protocol["seed"]
     assert protocol["g6"]["case_count"] == 20
     assert protocol["acceptance_thresholds"]["maximum_point_position_error_m"] == 0.2
+
+
+def test_g8_protocol_separates_operational_cases_from_stress_cases() -> None:
+    """Рабочая область и тяжёлые искажения G8 фиксируются до итогового прогона."""
+
+    path = Path("experiments/configs/synthetic_3d_g8_annotation_robustness.json")
+    protocol = json.loads(path.read_text(encoding="utf-8"))
+
+    cases = protocol["mask_cases"]
+    assert len(cases) == 12
+    assert any(case["operational"] for case in cases)
+    assert any(not case["operational"] for case in cases)
+    assert {case["kind"] for case in cases} == {
+        "boundary",
+        "completeness",
+        "contamination",
+    }
+    noise = protocol["calibration_pixel_noise"]
+    assert noise["standard_deviations_px"] == sorted(
+        set(noise["standard_deviations_px"])
+    )
+    assert noise["maximum_operational_standard_deviation_px"] == 1.0

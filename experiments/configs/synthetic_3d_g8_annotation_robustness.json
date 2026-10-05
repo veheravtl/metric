@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "experiment": "G8 Teach annotation robustness",
+  "seed": 20261005,
+  "scene_config": "experiments/configs/synthetic_3d_g7_teach_repeat.json",
+  "base_mask_erosion_px": 9,
+  "mask_cases": [
+    {"id": "baseline_erode_9", "kind": "boundary", "offset_px": -9, "operational": true},
+    {"id": "exact_boundary", "kind": "boundary", "offset_px": 0, "operational": true},
+    {"id": "boundary_erode_18", "kind": "boundary", "offset_px": -18, "operational": true},
+    {"id": "boundary_dilate_3", "kind": "boundary", "offset_px": 3, "operational": true},
+    {"id": "boundary_dilate_9", "kind": "boundary", "offset_px": 9, "operational": false},
+    {"id": "completeness_75", "kind": "completeness", "retained_fraction": 0.75, "operational": true},
+    {"id": "completeness_50", "kind": "completeness", "retained_fraction": 0.50, "operational": false},
+    {"id": "completeness_25", "kind": "completeness", "retained_fraction": 0.25, "operational": false},
+    {"id": "roof_contamination_10", "kind": "contamination", "added_fraction": 0.10, "operational": true},
+    {"id": "roof_contamination_25", "kind": "contamination", "added_fraction": 0.25, "operational": false},
+    {"id": "roof_contamination_50", "kind": "contamination", "added_fraction": 0.50, "operational": false},
+    {"id": "roof_contamination_100", "kind": "contamination", "added_fraction": 1.00, "operational": false}
+  ],
+  "calibration_pixel_noise": {
+    "standard_deviations_px": [0.0, 0.25, 0.5, 1.0, 2.0, 4.0],
+    "trials_per_level": 20,
+    "maximum_operational_standard_deviation_px": 1.0
+  },
+  "preregistered_success": {
+    "baseline_expected_accepted_correct": 8,
+    "baseline_expected_rejected_valid": 4,
+    "maximum_mask_false_accepts_all_cases": 0,
+    "minimum_accepted_correct_per_operational_mask": 4,
+    "maximum_calibration_false_accepts_operational": 0,
+    "maximum_calibration_p95_point_position_error_m": 0.2,
+    "maximum_calibration_p95_segment_absolute_error_m": 0.15,
+    "maximum_calibration_p95_segment_relative_error_percent": 2.0
+  }
+}

@@ -2,7 +2,7 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-05 после выполнения синтетических ступеней G0–G7.
+2026-10-05 после выполнения синтетических ступеней G0–G8.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -10,15 +10,17 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти четыре документа в таком порядке:
+Для знакомства с проектом достаточно пройти пять документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G7](synthetic-3d-teach-repeat-report.md) — текущий синтетический
-   Teach/Repeat-результат и его границы.
-4. [План 3D-гейта](synthetic-3d-gate-plan.md) — смысл ступеней G0–G8 и точка
-   продолжения.
+3. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — текущая граница
+   устойчивости Teach-разметки и отрицательный итог G8.
+4. [План G9](synthetic-3d-terrain-pose-plan.md) — следующий срез рельефа и
+   изменения камеры при доверенной Teach-разметке.
+5. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G8 и общая
+   логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
 раздел [«Частые команды»](#частые-команды) ниже.
@@ -98,6 +100,7 @@ Inlier-точки — пары, согласующиеся с найденной
 | `synthetic.py` | Создаёт плоские кадры с заранее известной гомографией. |
 | `synthetic_3d.py` | Проверяет описание Blender-сцены, запускает Blender отдельным процессом и анализирует рендеры. Сам `bpy` сюда не импортируется. |
 | `synthetic_robustness.py` | Детерминированно ухудшает Repeat-кадр: экспозиция, тень, размытие, разрешение и другие факторы G4–G6. |
+| `teach_annotation.py` | Строит контролируемые ошибки границы, полноты и чистоты Teach-маски и считает их относительно скрытой истины. |
 | `surface_evaluation.py` | Раздельно оценивает одну гомографию на земле и крышах, чтобы видеть ошибку от параллакса. |
 | `dense_ground_truth.py` | Проверяет гомографию по плотной трёхмерной контрольной истине OrthoLoC. |
 
@@ -133,6 +136,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g2_height_sweep.json` | G2: влияние высоты объектов и параллакса. |
 | `synthetic_3d_g3_g6_robustness.json` | G3–G6: видимая земля, искажения, комбинации и отложенные сцены. |
 | `synthetic_3d_g7_teach_repeat.json` | G7: перспективный размеченный Teach и неизвестный Repeat RGB. |
+| `synthetic_3d_g8_annotation_robustness.json` | G8: замороженные ошибки Teach-маски, шум метрических кликов и критерии. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -157,13 +161,14 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G7:
+Blender и ступени G0–G8:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
 - `synthetic_3d_height_sweep.py` — G2;
 - `synthetic_3d_robustness_suite.py` — G3–G6;
 - `synthetic_3d_teach_repeat_gate.py` — G7.
+- `synthetic_3d_annotation_robustness.py` — G8.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -208,6 +213,7 @@ Blender и ступени G0–G7:
 - `outputs/synthetic_3d/g2_height_sweep/` — G2;
 - `outputs/synthetic_3d/g3_g6_robustness/` — G3–G6;
 - `outputs/synthetic_3d/g7_teach_repeat/` — G7;
+- `outputs/synthetic_3d/g8_annotation_robustness/` — G8;
 - `outputs/cache/` — повторно используемые признаки и промежуточные данные;
 - файлы `cloud_*`, `ortholoc_*`, `scale_*` и `spatial_*` — результаты
   соответствующих сценариев из `experiments/feasibility/`.
@@ -231,12 +237,14 @@ Blender и ступени G0–G7:
 
 Синтетический 3D-стенд:
 
-- [synthetic-3d-gate-plan.md](synthetic-3d-gate-plan.md) — G0–G8;
+- [synthetic-3d-gate-plan.md](synthetic-3d-gate-plan.md) — G0–G9;
 - [synthetic-3d-smoke-report.md](synthetic-3d-smoke-report.md) — G0;
 - [synthetic-3d-metric-recovery-report.md](synthetic-3d-metric-recovery-report.md) — G1;
 - [synthetic-3d-height-sweep-report.md](synthetic-3d-height-sweep-report.md) — G2;
 - [synthetic-3d-robustness-report.md](synthetic-3d-robustness-report.md) — G3–G6;
 - [synthetic-3d-teach-repeat-report.md](synthetic-3d-teach-repeat-report.md) — G7;
+- [synthetic-3d-annotation-robustness-report.md](synthetic-3d-annotation-robustness-report.md) — G8;
+- [synthetic-3d-terrain-pose-plan.md](synthetic-3d-terrain-pose-plan.md) — план G9;
 - [blender-quickstart.md](blender-quickstart.md) — ручной просмотр сцены.
 
 Реальные данные и поиск места:
@@ -310,16 +318,16 @@ uv run ruff check .
 uv run python apps/poc_web.py
 ```
 
-Повторить текущий G7:
+Повторить текущий G8:
 
 ```bash
-uv run python experiments/feasibility/synthetic_3d_teach_repeat_gate.py
+uv run python experiments/feasibility/synthetic_3d_annotation_robustness.py
 ```
 
-Открыть уже созданную сцену G7:
+Открыть уже созданную сцену G8:
 
 ```bash
-./scripts/open_blender_scene.sh outputs/synthetic_3d/g7_teach_repeat/scene/scene.blend
+./scripts/open_blender_scene.sh outputs/synthetic_3d/g8_annotation_robustness/scene/scene.blend
 ```
 
 Конкретные команды загрузки данных и запуска других опытов приведены в
