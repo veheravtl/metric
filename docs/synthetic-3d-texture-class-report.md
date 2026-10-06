@@ -60,15 +60,15 @@ G13 показывает ограничение этой проверки: по�
 
 Конфигурация сцен:
 
-- `experiments/configs/synthetic_3d_g13_texture_classes.json@@BT>;
+- `experiments/configs/synthetic_3d_g13_texture_classes.json`;
 - SHA-256:
-  `df9c718f9935e6b5d533b8dac844bb3775c66edcbb8bf3b622db053f873b7617@@BT>.
+  `df9c718f9935e6b5d533b8dac844bb3775c66edcbb8bf3b622db053f873b7617`.
 
 Конфигурация продуктовой оценки:
 
-- `experiments/configs/synthetic_3d_g13_texture_evaluation.json@@BT>;
+- `experiments/configs/synthetic_3d_g13_texture_evaluation.json`;
 - SHA-256:
-  `14a5e8e24338ac61f4ee74a202ac60dba1771685afbad6253d93b7b297aadd65@@BT>.
+  `14a5e8e24338ac61f4ee74a202ac60dba1771685afbad6253d93b7b297aadd65`.
 
 Обе суммы совпали после запуска.
 

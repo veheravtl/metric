@@ -49,6 +49,28 @@ def test_g1_description_allows_exactly_two_required_poses() -> None:
     }
     assert len(description["metric_controls"]) == 4
 
+
+def test_reference_only_description_requires_explicit_contract(tmp_path: Path) -> None:
+    """Однокамерный опыт разрешён только при явном сужении smoke-контракта."""
+
+    description = json.loads(
+        Path("experiments/configs/synthetic_3d_g1_metric.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    description["cameras"] = [
+        camera for camera in description["cameras"] if camera["role"] == "reference"
+    ]
+    path = tmp_path / "reference_only.json"
+    path.write_text(json.dumps(description), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="repeat"):
+        load_scene_description(path)
+    loaded = load_scene_description(path, required_camera_roles=("reference",))
+
+    assert len(loaded["cameras"]) == 1
+
+
 def test_description_rejects_pixel_units(tmp_path: Path) -> None:
     """Мировые величины нельзя незаметно принять за пиксели вместо метров."""
 

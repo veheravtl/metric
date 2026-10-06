@@ -2,7 +2,7 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-06 после отрицательного G13 с периодической текстурой земли.
+2026-10-06 после положительного G13-R с предварительным отказом на самопохожей Teach-текстуре.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -10,26 +10,28 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти десять документов в таком порядке:
+Для знакомства с проектом достаточно пройти одиннадцать документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
+3. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
+   неоднозначной Teach-текстуре и его цена доступностью.
+4. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
    гладкой земле и опасное ложное принятие на повторяющихся рядах.
-4. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
+5. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
    пограничной позы, качества кадра и ошибок Teach-маски на новых seed.
-5. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
+6. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
    базиса, высоты и наклона повторной камеры.
-6. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
+7. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
    объектам над плоской землёй.
-7. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
+8. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
    продуктовая постановка и точность вектора «цель → попадание».
-8. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+9. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
    метрической модели на гладком рельефе и отрицательный итог G9.
-9. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+10. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-10. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G13 и
+11. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G13 и
    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
@@ -118,6 +120,7 @@ Inlier-точки — пары, согласующиеся с найденной
 | `relative_measurement.py` | Считает вектор «цель → попадание» и раздельно оценивает ошибку компонент, длины, направления и знака. |
 | `clutter_geometry.py` | Детерминированно размещает камни, пни и кусты в метрах без зависимости от Blender. |
 | `ground_texture.py` | Детерминированно создаёт богатую, низкодетальную и периодическую текстуры земли без зависимости от Blender. |
+| `texture_ambiguity.py` | Измеряет долю почти одинаковых SIFT-признаков в удалённых частях Teach и выдаёт предварительный отказ. |
 | `interaction_evaluation.py` | Присваивает продуктовый исход с учётом решения gate, ошибки вектора и ошибок знака. |
 
 ### Поиск места на CLOUD
@@ -166,6 +169,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g12_pose_interactions.json` | G12: замороженные позы, ухудшения кадра, ошибка маски и критерии. |
 | `synthetic_3d_g13_texture_classes.json` | G13: согласованные seed, классы текстуры, объекты и позы. |
 | `synthetic_3d_g13_texture_evaluation.json` | G13: продуктовый вектор и заранее заданные критерии по классам. |
+| `synthetic_3d_g13r_ambiguity.json` | G13-R: frozen-пороги самопохожести и девять новых holdout-сцен. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -190,7 +194,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G13:
+Blender и ступени G0–G13-R:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
@@ -201,6 +205,7 @@ Blender и ступени G0–G13:
 - `synthetic_3d_terrain_pose.py` — G9, G10 и pose-sweep G11;
 - `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10–G11;
 - `synthetic_3d_pose_interactions.py` — G12--G13: совместная оценка позы, качества, маски и класса текстуры.
+- `synthetic_3d_texture_ambiguity.py` — G13-R: Teach-самопохожесть, holdout и переоценка исходов G13.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -282,6 +287,8 @@ Blender и ступени G0–G13:
 - [synthetic-3d-pose-interactions-report.md](synthetic-3d-pose-interactions-report.md) — взаимодействия G12;
 - [synthetic-3d-texture-class-plan.md](synthetic-3d-texture-class-plan.md) — замороженный план G13;
 - [synthetic-3d-texture-class-report.md](synthetic-3d-texture-class-report.md) — отрицательный результат G13;
+- [synthetic-3d-texture-ambiguity-plan.md](synthetic-3d-texture-ambiguity-plan.md) — замороженный план G13-R;
+- [synthetic-3d-texture-ambiguity-report.md](synthetic-3d-texture-ambiguity-report.md) — положительный результат G13-R;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 - [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;

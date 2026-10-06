@@ -20,6 +20,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+DEFAULT_REQUIRED_CAMERA_ROLES = ("reference", "repeat")
 
 @dataclass(frozen=True)
 class RenderMetrics:
@@ -48,7 +49,11 @@ class RenderCheck:
     failures: tuple[str, ...]
 
 
-def load_scene_description(path: Path) -> dict[str, Any]:
+def load_scene_description(
+    path: Path,
+    *,
+    required_camera_roles: tuple[str, ...] = DEFAULT_REQUIRED_CAMERA_ROLES,
+) -> dict[str, Any]:
     """Читает и проверяет минимально необходимые поля описания сцены.
 
     Полная физическая валидация остаётся в Blender-генераторе, потому что он
@@ -84,8 +89,12 @@ def load_scene_description(path: Path) -> dict[str, Any]:
 
     cameras = description["cameras"]
     roles = {camera.get("role") for camera in cameras}
-    if not {"reference", "repeat"}.issubset(roles):
-        raise ValueError("Нужны камеры ролей reference и repeat")
+    required_roles = set(required_camera_roles)
+    if not required_roles:
+        raise ValueError("Нужна хотя бы одна обязательная роль камеры")
+    missing_roles = sorted(required_roles - roles)
+    if missing_roles:
+        raise ValueError(f"Не хватает ролей камер: {', '.join(missing_roles)}")
 
     identifiers = [camera.get("id") for camera in cameras]
     identifiers.extend(obj.get("id") for obj in description["objects"])
@@ -170,6 +179,7 @@ def run_synthetic_3d_smoke(
     output_directory: Path,
     blender_executable: Path,
     generator_script: Path,
+    required_camera_roles: tuple[str, ...] = DEFAULT_REQUIRED_CAMERA_ROLES,
 ) -> dict[str, Any]:
     """Запускает Blender, анализирует рендеры и сохраняет итоговый отчёт.
 
@@ -178,7 +188,10 @@ def run_synthetic_3d_smoke(
     вызывающий эксперимент получает исключение либо отчёт с passed=false.
     """
 
-    description = load_scene_description(description_path)
+    description = load_scene_description(
+        description_path,
+        required_camera_roles=required_camera_roles,
+    )
     output_directory.mkdir(parents=True, exist_ok=True)
 
     command = [

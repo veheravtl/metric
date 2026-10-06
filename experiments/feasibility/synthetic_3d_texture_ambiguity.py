@@ -282,6 +282,7 @@ def main() -> None:
                 output_directory=scene_directory,
                 blender_executable=arguments.blender,
                 generator_script=GENERATOR_SCRIPT,
+                required_camera_roles=("reference",),
             )
             if not smoke["passed"]:
                 raise RuntimeError(f"Blender smoke не пройден: {surface['id']}")
