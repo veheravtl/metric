@@ -94,7 +94,9 @@ def build_scene_description(
     return {
         "schema_version": 1,
         "scenario_id": f"g9_{surface['id']}",
-        "seed": protocol["seed"],
+        # Один протокол G12 содержит несколько независимых texture/clutter seed.
+        # Старые конфигурации не задают scene_seed и сохраняют прежнее поведение.
+        "seed": int(surface.get("scene_seed", protocol["seed"])),
         "world": {
             "units": world["units"],
             "axis_convention": world["axis_convention"],

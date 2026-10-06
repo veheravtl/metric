@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "experiment": "G12 interactions near accepted G11 pose limits",
+  "seed": 20261210,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_output": "outputs/synthetic_3d/g12_interaction_scenes",
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "displacement_vectors_xy_m": [
+    {
+      "id": "north_2m",
+      "delta_xy_m": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "north_5m",
+      "delta_xy_m": [
+        0,
+        5
+      ]
+    },
+    {
+      "id": "north_10m",
+      "delta_xy_m": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "east4_north8",
+      "delta_xy_m": [
+        4,
+        8
+      ]
+    },
+    {
+      "id": "west4_north8",
+      "delta_xy_m": [
+        -4,
+        8
+      ]
+    },
+    {
+      "id": "east4_south8",
+      "delta_xy_m": [
+        4,
+        -8
+      ]
+    }
+  ],
+  "maximum_pairs_per_vector": 20,
+  "minimum_pairs_per_vector": 5,
+  "pair_vector_tolerance_m": 0.05,
+  "target_frame_camera_id": "repeat_same",
+  "safe_mask_erosion_px": 9,
+  "cases": [
+    {
+      "id": "c00_nominal"
+    },
+    {
+      "id": "c01_blur_1px",
+      "blur_sigma_px": 1
+    },
+    {
+      "id": "c02_resolution_0_33",
+      "resolution_scale": 0.33
+    },
+    {
+      "id": "c03_shadow_0_75",
+      "shadow_fraction": 0.75
+    },
+    {
+      "id": "c04_dim_m1_5",
+      "exposure_stops": -1.5
+    },
+    {
+      "id": "c05_mask_contamination_0_10",
+      "mask_contamination_fraction": 0.1
+    },
+    {
+      "id": "c06_blur_resolution",
+      "blur_sigma_px": 1,
+      "resolution_scale": 0.33
+    },
+    {
+      "id": "c07_shadow_resolution",
+      "shadow_fraction": 0.75,
+      "resolution_scale": 0.33
+    },
+    {
+      "id": "c08_dim_resolution",
+      "exposure_stops": -1.5,
+      "resolution_scale": 0.33
+    },
+    {
+      "id": "c09_mask_blur",
+      "mask_contamination_fraction": 0.1,
+      "blur_sigma_px": 1
+    },
+    {
+      "id": "c10_mask_resolution",
+      "mask_contamination_fraction": 0.1,
+      "resolution_scale": 0.33
+    },
+    {
+      "id": "c11_mask_shadow",
+      "mask_contamination_fraction": 0.1,
+      "shadow_fraction": 0.75
+    },
+    {
+      "id": "c12_mask_shadow_resolution",
+      "mask_contamination_fraction": 0.1,
+      "shadow_fraction": 0.75,
+      "resolution_scale": 0.33
+    }
+  ],
+  "product_thresholds": {
+    "maximum_vector_error_p95_m": 0.25,
+    "severe_vector_error_m": 0.5,
+    "maximum_sign_errors": 0
+  },
+  "preregistered_success": {
+    "maximum_false_accepts": 0,
+    "maximum_measurement_failures": 0,
+    "minimum_pairs_per_vector": 5,
+    "maximum_accepted_vector_error_p95_m": 0.25,
+    "maximum_accepted_sign_errors": 0
+  },
+  "design_note": "Targeted pair interactions; not a complete factorial grid.",
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/d4/d13/tutorial_py_filtering.html",
+    "https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html",
+    "https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html",
+    "https://www.itl.nist.gov/div898/handbook/pri/section3/pri333.htm"
+  ]
+}

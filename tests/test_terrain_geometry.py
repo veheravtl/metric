@@ -20,6 +20,9 @@ from aerial_mapper.terrain_geometry import (
     terrain_vertices,
     triangle_centroid_samples,
 )
+from experiments.feasibility.synthetic_3d_terrain_pose import (
+    build_scene_description,
+)
 
 
 def test_inclined_plane_uses_angle_in_degrees() -> None:
@@ -149,3 +152,39 @@ def test_displacement_pair_selection_preserves_direction_and_sign() -> None:
     deltas = points[pairs[:, 1]] - points[pairs[:, 0]]
     assert pairs.shape == (5, 2)
     assert deltas == pytest.approx(np.tile([-2.0, 3.0], (5, 1)))
+
+
+def test_scene_description_allows_independent_surface_seed() -> None:
+    """G12 должен менять texture/clutter seed, не размножая полный протокол."""
+
+    protocol = {
+        "seed": 100,
+        "world": {
+            "units": "metres",
+            "axis_convention": "X east, Y north, Z up",
+            "ground_size_m": [80.0, 70.0],
+            "metric_texture": {"width_pixels": 640, "height_pixels": 480},
+            "grid_vertices_xy": [9, 8],
+            "truth_sample_stride": 2,
+        },
+        "render": {"width_pixels": 320, "height_pixels": 240},
+        "cameras": [],
+        "clutter_defaults": {"seed_offset": 11},
+    }
+    default = build_scene_description(
+        protocol,
+        {"id": "default", "terrain": {"kind": "flat"}},
+    )
+    overridden = build_scene_description(
+        protocol,
+        {
+            "id": "alternate",
+            "scene_seed": 207,
+            "terrain": {"kind": "flat"},
+            "clutter": {"count": 3},
+        },
+    )
+
+    assert default["seed"] == 100
+    assert overridden["seed"] == 207
+    assert overridden["clutter"] == {"seed_offset": 11, "count": 3}
