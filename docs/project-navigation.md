@@ -2,7 +2,7 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-06 после завершения G9-R с относительным вектором промаха.
+2026-10-06 после завершения G10 с распределённым трёхмерным мусором.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -10,18 +10,20 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти шесть документов в таком порядке:
+Для знакомства с проектом достаточно пройти семь документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — текущая
+3. [Отчёт G10](synthetic-3d-clutter-report.md) — текущая граница устойчивости
+   к статичным объектам над плоской землёй.
+4. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
    продуктовая постановка и точность вектора «цель → попадание».
-4. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+5. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
    метрической модели на гладком рельефе и отрицательный итог G9.
-5. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+6. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-6. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G9-R и
+7. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G10 и
    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
@@ -108,6 +110,7 @@ Inlier-точки — пары, согласующиеся с найденной
 | `terrain_geometry.py` | Задаёт воспроизводимые формы рельефа и строит их метрическую полигональную сетку. |
 | `terrain_evaluation.py` | Независимо оценивает ошибку точек и длин на рельефе, не переиспользуя точки подгонки. |
 | `relative_measurement.py` | Считает вектор «цель → попадание» и раздельно оценивает ошибку компонент, длины, направления и знака. |
+| `clutter_geometry.py` | Детерминированно размещает камни, пни и кусты в метрах без зависимости от Blender. |
 
 ### Поиск места на CLOUD
 
@@ -145,6 +148,10 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g9_terrain_pose.json` | G9: замороженный pilot рельефа и позы камеры. |
 | `synthetic_3d_g9_boundary_followup.json` | G9: независимое уточнение границы широкого холма. |
 | `synthetic_3d_g9r_relative_displacement.json` | G9-R: векторы промаха, картографические реперы и диагностические полосы ошибки. |
+| `synthetic_3d_g10_clutter.json` | G10: pilot числа мелких 3D-объектов. |
+| `synthetic_3d_g10r_relative_clutter.json` | G10: относительная оценка pilot. |
+| `synthetic_3d_g10_clutter_boundary.json` | G10: follow-up крупных объектов. |
+| `synthetic_3d_g10r_relative_clutter_boundary.json` | G10: относительная оценка follow-up. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -169,7 +176,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G9-R:
+Blender и ступени G0–G10:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
@@ -178,7 +185,7 @@ Blender и ступени G0–G9-R:
 - `synthetic_3d_teach_repeat_gate.py` — G7;
 - `synthetic_3d_annotation_robustness.py` — G8;
 - `synthetic_3d_terrain_pose.py` — G9;
-- `synthetic_3d_relative_displacement.py` — G9-R.
+- `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -257,8 +264,9 @@ Blender и ступени G0–G9-R:
 - [synthetic-3d-annotation-robustness-report.md](synthetic-3d-annotation-robustness-report.md) — G8;
 - [synthetic-3d-terrain-pose-plan.md](synthetic-3d-terrain-pose-plan.md) — план G9;
 - [synthetic-3d-terrain-pose-report.md](synthetic-3d-terrain-pose-report.md) — отрицательный итог G9;
-- [blender-quickstart.md](blender-quickstart.md) — ручной просмотр сцены.
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
+- [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;
+- [blender-quickstart.md](blender-quickstart.md) — ручной просмотр сцены.
 
 Реальные данные и поиск места:
 

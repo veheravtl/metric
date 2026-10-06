@@ -48,6 +48,11 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--blender", type=Path, default=DEFAULT_BLENDER)
     parser.add_argument("--surfaces", nargs="*", default=None)
+    parser.add_argument(
+        "--reuse-scenes",
+        action="store_true",
+        help="Переиспользовать сцену только при точном совпадении frozen config.",
+    )
     return parser.parse_args()
 
 
@@ -106,6 +111,10 @@ def build_scene_description(
         "render": protocol["render"],
         "cameras": protocol["cameras"],
         "objects": [],
+        "clutter": {
+            **protocol.get("clutter_defaults", {}),
+            **surface.get("clutter", {}),
+        },
     }
 
 
@@ -361,18 +370,26 @@ def main() -> None:
         scene_directory.mkdir(parents=True, exist_ok=True)
         scene_config = build_scene_description(protocol, surface)
         config_path = scene_directory / "frozen_scene_config.json"
+        existing_matches = bool(
+            config_path.exists()
+            and json.loads(config_path.read_text(encoding="utf-8")) == scene_config
+            and (scene_directory / "generation_metadata.json").exists()
+        )
         config_path.write_text(
             json.dumps(scene_config, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        smoke = run_synthetic_3d_smoke(
-            description_path=config_path,
-            output_directory=scene_directory,
-            blender_executable=arguments.blender,
-            generator_script=GENERATOR_SCRIPT,
-        )
-        if not smoke["passed"]:
-            raise RuntimeError(f"Blender smoke не пройден для {surface['id']}")
+        if arguments.reuse_scenes and existing_matches:
+            print(f"reused_surface={surface['id']}")
+        else:
+            smoke = run_synthetic_3d_smoke(
+                description_path=config_path,
+                output_directory=scene_directory,
+                blender_executable=arguments.blender,
+                generator_script=GENERATOR_SCRIPT,
+            )
+            if not smoke["passed"]:
+                raise RuntimeError(f"Blender smoke не пройден для {surface['id']}")
         smoke_results[surface["id"]] = True
         rows.extend(evaluate_surface(protocol, surface, scene_directory))
         print(f"completed_surface={surface['id']}")
@@ -381,9 +398,9 @@ def main() -> None:
     for row in rows:
         classification = row["sift_ransac"]["classification"]
         counts[classification] = counts.get(classification, 0) + 1
-    planar_rows = [
-        row for row in rows if row["surface_id"] in {"flat", "plane_slope_x_10deg"}
-    ]
+    planar_rows = [row for row in rows if row["terrain"]["kind"] in {"flat", "plane"}]
+    if not planar_rows:
+        raise RuntimeError("В протоколе отсутствует плоский контроль")
     planar_oracle_maximum = max(
         row["oracle_single_homography"]["points"]["maximum_m"] for row in planar_rows
     )

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiment": "G10-R target-centered displacement under 3D clutter",
+  "seed": 20261010,
+  "source_protocol": "experiments/configs/synthetic_3d_g10_clutter.json",
+  "source_output": "outputs/synthetic_3d/g10_clutter",
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "displacement_vectors_xy_m": [
+    {"id": "north_2m", "delta_xy_m": [0.0, 2.0]},
+    {"id": "north_5m", "delta_xy_m": [0.0, 5.0]},
+    {"id": "north_10m", "delta_xy_m": [0.0, 10.0]},
+    {"id": "east4_north8", "delta_xy_m": [4.0, 8.0]},
+    {"id": "west4_north8", "delta_xy_m": [-4.0, 8.0]},
+    {"id": "east4_south8", "delta_xy_m": [4.0, -8.0]}
+  ],
+  "maximum_pairs_per_vector": 20,
+  "pair_vector_tolerance_m": 0.05,
+  "target_frame_camera_id": "repeat_same",
+  "error_bands_m": [0.25, 0.5, 1.0]
+}

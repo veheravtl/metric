@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from blender_generate_scene import (  # noqa: E402
     configure_render,
     make_collections,
     make_metric_texture,
+    make_procedural_object_material,
     move_to_collection,
     parse_script_arguments,
     project_world_point_to_pixel,
@@ -33,8 +35,10 @@ from blender_generate_scene import (  # noqa: E402
     reset_scene,
 )
 
+from aerial_mapper.clutter_geometry import generate_clutter_instances  # noqa: E402
 from aerial_mapper.terrain_geometry import (  # noqa: E402
     TerrainSpecification,
+    terrain_height_m,
     terrain_vertices,
     triangle_centroid_samples,
 )
@@ -93,6 +97,71 @@ def build_terrain(
         stride=int(terrain["truth_sample_stride"]),
     )
     return ground, samples
+
+
+def build_clutter(
+    description: dict[str, Any],
+    collections: dict[str, bpy.types.Collection],
+) -> list[dict[str, Any]]:
+    """Поднимает над рельефом камни, пни и кусты из зафиксированной схемы.
+
+    Основание каждого примитива ставится на аналитическую высоту рельефа в его
+    центре. Объекты получают pass index 2, поэтому существующий контрольный
+    рендер помечает их как не-землю и исключает из доверенной Teach-маски.
+    """
+
+    clutter_specification = description.get("clutter")
+    if not clutter_specification:
+        return []
+    width_m, depth_m = (float(value) for value in description["world"]["ground_size_m"])
+    terrain = TerrainSpecification.from_mapping(description["world"]["terrain"])
+    seed = int(description["seed"]) + int(clutter_specification.get("seed_offset", 0))
+    instances = generate_clutter_instances(
+        width_m=width_m,
+        depth_m=depth_m,
+        specification=clutter_specification,
+        seed=seed,
+    )
+
+    for object_index, instance in enumerate(instances):
+        ground_z = float(terrain_height_m(instance.x_m, instance.y_m, terrain))
+        center = (
+            instance.x_m,
+            instance.y_m,
+            ground_z + instance.height_m / 2.0,
+        )
+        if instance.kind == "stump":
+            bpy.ops.mesh.primitive_cylinder_add(
+                vertices=20,
+                radius=1.0,
+                depth=1.0,
+                location=center,
+            )
+        else:
+            subdivisions = 2 if instance.kind == "rock" else 3
+            bpy.ops.mesh.primitive_ico_sphere_add(
+                subdivisions=subdivisions,
+                radius=1.0,
+                location=center,
+            )
+        object_ = bpy.context.object
+        object_.name = instance.identifier
+        object_.dimensions = (
+            2.0 * instance.radius_x_m,
+            2.0 * instance.radius_y_m,
+            instance.height_m,
+        )
+        object_.rotation_euler[2] = np.deg2rad(instance.rotation_z_degrees)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        material = make_procedural_object_material(
+            f"mat_{instance.identifier}",
+            list(instance.color_srgb),
+            texture_seed=float(seed % 997 + object_index * 17),
+        )
+        object_.data.materials.append(material)
+        object_.pass_index = 2
+        move_to_collection(object_, collections["Objects"])
+    return [asdict(instance) for instance in instances]
 
 
 def visible_from_camera(
@@ -199,6 +268,7 @@ def main() -> None:
     scene.unit_settings.length_unit = "METERS"
     collections = make_collections()
     ground, samples = build_terrain(description, collections, output_directory)
+    clutter = build_clutter(description, collections)
     cameras = build_cameras(description, collections)
     add_lighting(collections)
     configure_render(description)
@@ -237,6 +307,8 @@ def main() -> None:
             for item in description["cameras"]
         ],
         "elapsed_seconds": time.perf_counter() - started_at,
+        "clutter_object_count": len(clutter),
+        "clutter_objects": clutter,
         "limitations": [
             "terrain_truth и контрольные маски доступны только оценщику.",
             "Поверхность является гладкой однозначной функцией Z=f(X,Y).",

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "experiment": "G10 large clutter boundary follow-up",
+  "seed": 20261011,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [80.0, 70.0],
+    "metric_texture": {
+      "width_pixels": 1920,
+      "height_pixels": 1680
+    },
+    "grid_vertices_xy": [81, 71],
+    "truth_sample_stride": 4
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 960,
+    "height_pixels": 720,
+    "samples": 16,
+    "control_passes": true
+  },
+  "clutter_defaults": {
+    "edge_margin_m": 2.0,
+    "minimum_gap_m": 0.15,
+    "maximum_attempts": 200000,
+    "seed_offset": 911,
+    "kinds": {
+      "rock": {
+        "weight": 0.4,
+        "height_m": [0.8, 2.0],
+        "radius_m": [0.6, 1.5],
+        "xy_aspect_ratio": [0.7, 1.3]
+      },
+      "stump": {
+        "weight": 0.3,
+        "height_m": [1.0, 3.0],
+        "radius_m": [0.4, 0.8],
+        "xy_aspect_ratio": [0.9, 1.1]
+      },
+      "shrub": {
+        "weight": 0.3,
+        "height_m": [2.0, 5.0],
+        "radius_m": [1.0, 2.0],
+        "xy_aspect_ratio": [0.75, 1.25]
+      }
+    }
+  },
+  "surfaces": [
+    {
+      "id": "large_clutter_048",
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 48}
+    },
+    {
+      "id": "large_clutter_120",
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 120}
+    },
+    {
+      "id": "large_clutter_240",
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 240}
+    }
+  ],
+  "cameras": [
+    {
+      "id": "teach_000",
+      "role": "reference",
+      "projection": "perspective",
+      "location_m": [0.0, 0.0, 45.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "focal_length_mm": 24.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_same",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [0.0, 0.0, 45.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "focal_length_mm": 24.0,
+      "sensor_width_mm": 36.0
+    },
+    {
+      "id": "repeat_baseline_0_1h",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [4.5, 0.0, 45.0],
+      "target_m": [0.0, 0.0, 0.0],
+      "focal_length_mm": 24.0,
+      "sensor_width_mm": 36.0
+    }
+  ],
+  "teach_mask_erosion_px": 9,
+  "acceptance_thresholds": {
+    "minimum_inlier_count": 35,
+    "minimum_inlier_ratio": 0.5,
+    "minimum_coverage_fraction": 0.18,
+    "maximum_reprojection_p95_px": 2.0,
+    "maximum_stability_p95_corner_shift_px": 5.0,
+    "maximum_point_position_error_m": 0.2,
+    "maximum_segment_absolute_error_m": 0.15,
+    "maximum_segment_relative_error_percent": 2.0
+  },
+  "preregistered_success": {
+    "maximum_false_accepts": 0,
+    "maximum_planar_oracle_point_error_m": 0.01,
+    "minimum_common_visible_points": 100,
+    "maximum_accepted_relative_vector_error_m": 0.5,
+    "maximum_relative_sign_errors": 0
+  }
+}
