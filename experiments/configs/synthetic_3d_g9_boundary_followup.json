@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "experiment": "G9 terrain boundary follow-up",
+  "seed": 20261007,
+  "world": {
+    "units": "metres",
+    "axis_convention": "X east, Y north, Z up",
+    "ground_size_m": [
+      80,
+      70
+    ],
+    "metric_texture": {
+      "width_pixels": 1920,
+      "height_pixels": 1680
+    },
+    "grid_vertices_xy": [
+      81,
+      71
+    ],
+    "truth_sample_stride": 4
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE_NEXT",
+    "width_pixels": 960,
+    "height_pixels": 720,
+    "samples": 16,
+    "control_passes": true
+  },
+  "surfaces": [
+    {
+      "id": "flat",
+      "terrain": {
+        "kind": "flat"
+      }
+    },
+    {
+      "id": "hill_a_over_h_0_015",
+      "terrain": {
+        "kind": "gaussian",
+        "amplitude_m": 0.675,
+        "sigma_m": 12
+      }
+    },
+    {
+      "id": "hill_a_over_h_0_02",
+      "terrain": {
+        "kind": "gaussian",
+        "amplitude_m": 0.9,
+        "sigma_m": 12
+      }
+    },
+    {
+      "id": "hill_a_over_h_0_03",
+      "terrain": {
+        "kind": "gaussian",
+        "amplitude_m": 1.35,
+        "sigma_m": 12
+      }
+    },
+    {
+      "id": "hill_a_over_h_0_04",
+      "terrain": {
+        "kind": "gaussian",
+        "amplitude_m": 1.8,
+        "sigma_m": 12
+      }
+    }
+  ],
+  "cameras": [
+    {
+      "id": "teach_000",
+      "role": "reference",
+      "projection": "perspective",
+      "location_m": [
+        0,
+        0,
+        45
+      ],
+      "target_m": [
+        0,
+        0,
+        0
+      ],
+      "focal_length_mm": 24,
+      "sensor_width_mm": 36
+    },
+    {
+      "id": "repeat_same",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [
+        0,
+        0,
+        45
+      ],
+      "target_m": [
+        0,
+        0,
+        0
+      ],
+      "focal_length_mm": 24,
+      "sensor_width_mm": 36
+    },
+    {
+      "id": "repeat_baseline_0_1h",
+      "role": "repeat",
+      "projection": "perspective",
+      "location_m": [
+        4.5,
+        0,
+        45
+      ],
+      "target_m": [
+        0,
+        0,
+        0
+      ],
+      "focal_length_mm": 24,
+      "sensor_width_mm": 36
+    }
+  ],
+  "teach_mask_erosion_px": 9,
+  "acceptance_thresholds": {
+    "minimum_inlier_count": 35,
+    "minimum_inlier_ratio": 0.5,
+    "minimum_coverage_fraction": 0.18,
+    "maximum_reprojection_p95_px": 2,
+    "maximum_stability_p95_corner_shift_px": 5,
+    "maximum_point_position_error_m": 0.2,
+    "maximum_segment_absolute_error_m": 0.15,
+    "maximum_segment_relative_error_percent": 2
+  },
+  "preregistered_success": {
+    "maximum_false_accepts": 0,
+    "maximum_planar_oracle_point_error_m": 0.01,
+    "minimum_common_visible_points": 100
+  }
+}

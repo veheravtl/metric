@@ -2,7 +2,7 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-05 после выполнения синтетических ступеней G0–G8.
+2026-10-06 после завершения G9-R с относительным вектором промаха.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -10,17 +10,19 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти пять документов в таком порядке:
+Для знакомства с проектом достаточно пройти шесть документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — текущая граница
+3. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — текущая
+   продуктовая постановка и точность вектора «цель → попадание».
+4. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+   метрической модели на гладком рельефе и отрицательный итог G9.
+5. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-4. [План G9](synthetic-3d-terrain-pose-plan.md) — следующий срез рельефа и
-   изменения камеры при доверенной Teach-разметке.
-5. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G8 и общая
-   логика синтетического стенда.
+6. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G9-R и
+   общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
 раздел [«Частые команды»](#частые-команды) ниже.
@@ -103,6 +105,9 @@ Inlier-точки — пары, согласующиеся с найденной
 | `teach_annotation.py` | Строит контролируемые ошибки границы, полноты и чистоты Teach-маски и считает их относительно скрытой истины. |
 | `surface_evaluation.py` | Раздельно оценивает одну гомографию на земле и крышах, чтобы видеть ошибку от параллакса. |
 | `dense_ground_truth.py` | Проверяет гомографию по плотной трёхмерной контрольной истине OrthoLoC. |
+| `terrain_geometry.py` | Задаёт воспроизводимые формы рельефа и строит их метрическую полигональную сетку. |
+| `terrain_evaluation.py` | Независимо оценивает ошибку точек и длин на рельефе, не переиспользуя точки подгонки. |
+| `relative_measurement.py` | Считает вектор «цель → попадание» и раздельно оценивает ошибку компонент, длины, направления и знака. |
 
 ### Поиск места на CLOUD
 
@@ -137,6 +142,9 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g3_g6_robustness.json` | G3–G6: видимая земля, искажения, комбинации и отложенные сцены. |
 | `synthetic_3d_g7_teach_repeat.json` | G7: перспективный размеченный Teach и неизвестный Repeat RGB. |
 | `synthetic_3d_g8_annotation_robustness.json` | G8: замороженные ошибки Teach-маски, шум метрических кликов и критерии. |
+| `synthetic_3d_g9_terrain_pose.json` | G9: замороженный pilot рельефа и позы камеры. |
+| `synthetic_3d_g9_boundary_followup.json` | G9: независимое уточнение границы широкого холма. |
+| `synthetic_3d_g9r_relative_displacement.json` | G9-R: векторы промаха, картографические реперы и диагностические полосы ошибки. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -161,19 +169,22 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G8:
+Blender и ступени G0–G9-R:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
 - `synthetic_3d_height_sweep.py` — G2;
 - `synthetic_3d_robustness_suite.py` — G3–G6;
-- `synthetic_3d_teach_repeat_gate.py` — G7.
-- `synthetic_3d_annotation_robustness.py` — G8.
+- `synthetic_3d_teach_repeat_gate.py` — G7;
+- `synthetic_3d_annotation_robustness.py` — G8;
+- `synthetic_3d_terrain_pose.py` — G9;
+- `synthetic_3d_relative_displacement.py` — G9-R.
 
 ## Инструментальные скрипты: `scripts/`
 
 | Файл | Назначение |
 | --- | --- |
+| `blender_generate_terrain_scene.py` | Создаёт G9 mesh-рельеф и плотную ray-cast истину видимости. |
 | `install_blender.sh` | Скачивает и проверяет зафиксированную portable-версию Blender без системной установки. |
 | `blender.sh` | Единая точка запуска локального Blender, включая пакетный режим. |
 | `blender_generate_scene.py` | Выполняется встроенным Python Blender и создаёт сцену, камеры, рендеры и контрольные слои. |
@@ -245,7 +256,9 @@ Blender и ступени G0–G8:
 - [synthetic-3d-teach-repeat-report.md](synthetic-3d-teach-repeat-report.md) — G7;
 - [synthetic-3d-annotation-robustness-report.md](synthetic-3d-annotation-robustness-report.md) — G8;
 - [synthetic-3d-terrain-pose-plan.md](synthetic-3d-terrain-pose-plan.md) — план G9;
+- [synthetic-3d-terrain-pose-report.md](synthetic-3d-terrain-pose-report.md) — отрицательный итог G9;
 - [blender-quickstart.md](blender-quickstart.md) — ручной просмотр сцены.
+- [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 
 Реальные данные и поиск места:
 
