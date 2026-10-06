@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "experiment": "G13-R Teach self-similarity ambiguity guard",
+  "report_filename": "g13r_ambiguity_report.json",
+  "source_scene_protocol": "experiments/configs/synthetic_3d_g13_texture_classes.json",
+  "source_scene_output": "outputs/synthetic_3d/g13_texture_classes",
+  "source_evaluation_report": "outputs/synthetic_3d/g13_texture_evaluation/g13_texture_classes_report.json",
+  "ambiguity_thresholds": {
+    "remote_distance_px": 64.0,
+    "maximum_descriptor_distance": 80.0,
+    "minimum_keypoint_count": 200,
+    "maximum_remote_duplicate_fraction": 0.2
+  },
+  "validation_surfaces": [
+    {
+      "id": "holdout_rich_seed_1",
+      "scene_seed": 20261321,
+      "texture_class": "rich_irregular",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_rich_seed_2",
+      "scene_seed": 20261322,
+      "texture_class": "rich_irregular",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_rich_seed_3",
+      "scene_seed": 20261323,
+      "texture_class": "rich_irregular",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_low_seed_1",
+      "scene_seed": 20261321,
+      "texture_class": "low_detail",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_low_seed_2",
+      "scene_seed": 20261322,
+      "texture_class": "low_detail",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_low_seed_3",
+      "scene_seed": 20261323,
+      "texture_class": "low_detail",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_periodic_seed_1",
+      "scene_seed": 20261321,
+      "texture_class": "periodic_rows",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_periodic_seed_2",
+      "scene_seed": 20261322,
+      "texture_class": "periodic_rows",
+      "clutter_count": 240
+    },
+    {
+      "id": "holdout_periodic_seed_3",
+      "scene_seed": 20261323,
+      "texture_class": "periodic_rows",
+      "clutter_count": 240
+    }
+  ],
+  "validation_expectations": {
+    "rich_irregular": {
+      "case_count": 3,
+      "minimum_rejected": 0,
+      "maximum_rejected": 0
+    },
+    "low_detail": {
+      "case_count": 3,
+      "minimum_rejected": 0,
+      "maximum_rejected": 0
+    },
+    "periodic_rows": {
+      "case_count": 3,
+      "minimum_rejected": 3,
+      "maximum_rejected": 3
+    }
+  },
+  "limitations": [
+    "Порог разработан после просмотра G13 и независимо проверяется только на трёх новых seed каждого искусственного класса.",
+    "Guard выявляет повторяемость внутри одного Teach-кадра, но не доказывает уникальность участка за границами кадра.",
+    "Проверены только три процедурных класса при одной высоте, одной Teach-позе и неизменном освещении.",
+    "Отказ periodic_rows безопасен, но уменьшает доступность: guard не пытается выбрать правильную фазу узора.",
+    "Класс текстуры и seed используются только оценщиком и не входят в рабочее решение guard."
+  ],
+  "primary_sources": [
+    "https://www.cs.ubc.ca/~lowe/papers/ijcv04.pdf",
+    "https://docs.opencv.org/4.x/dc/dc3/tutorial_py_matcher.html"
+  ]
+}
