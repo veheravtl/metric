@@ -37,6 +37,10 @@
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
 раздел [«Частые команды»](#частые-команды) ниже.
 
+Для продолжения ветки многовидовой проверки Teach-разметки сначала прочитать
+[handoff 3D-реконструкции](3d-reconstruction-refrigerator.md): там сохранены
+ресурсный аудит, решение «в холодильнике» и точка входа нового чата.
+
 ## Карта верхнего уровня
 
 ```text
@@ -293,6 +297,7 @@ Blender и ступени G0–G13-R:
 - [synthetic-3d-texture-ambiguity-plan.md](synthetic-3d-texture-ambiguity-plan.md) — замороженный план G13-R;
 - [synthetic-3d-texture-ambiguity-report.md](synthetic-3d-texture-ambiguity-report.md) — положительный результат G13-R;
 - [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
+- [3d-reconstruction-refrigerator.md](3d-reconstruction-refrigerator.md) — решение по отложенной 3D-ветке, ресурсы и точка возобновления;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 - [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;
