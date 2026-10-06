@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -86,3 +86,35 @@ def summarize_product_gate(
         product_within_limits=within,
         classification=classification,
     )
+
+
+def classification_limit_failures(
+    counts: Mapping[str, int],
+    *,
+    maximum_false_accepts: int,
+    minimum_accepted_correct: int = 0,
+) -> tuple[str, ...]:
+    """Проверяет заранее заданные пределы исходов для одного класса данных.
+
+    Функция не знает, что означает класс: тип текстуры, камера или погода.
+    Она лишь не позволяет экспериментальному сценарию незаметно забыть
+    контрольную доступность или допустимое число ложных принятий.
+    """
+
+    if maximum_false_accepts < 0 or minimum_accepted_correct < 0:
+        raise ValueError("Пределы числа исходов должны быть неотрицательными")
+    accepted = int(counts.get("accepted_correct", 0))
+    false_accepts = int(counts.get("false_accept", 0))
+    if accepted < 0 or false_accepts < 0:
+        raise ValueError("Счётчики исходов должны быть неотрицательными")
+
+    failures: list[str] = []
+    if false_accepts > maximum_false_accepts:
+        failures.append(
+            f"ложных принятий {false_accepts} > {maximum_false_accepts}"
+        )
+    if accepted < minimum_accepted_correct:
+        failures.append(
+            f"корректных принятий {accepted} < {minimum_accepted_correct}"
+        )
+    return tuple(failures)

@@ -2,7 +2,10 @@
 
 import pytest
 
-from aerial_mapper.interaction_evaluation import summarize_product_gate
+from aerial_mapper.interaction_evaluation import (
+    classification_limit_failures,
+    summarize_product_gate,
+)
 
 
 def test_small_errors_and_correct_signs_are_accepted_correctly() -> None:
@@ -79,4 +82,36 @@ def test_empty_error_sample_is_rejected() -> None:
             y_sign_correct=[],
             gate_accepted=True,
             maximum_vector_error_p95_m=0.25,
+        )
+
+
+
+def test_classification_limits_keep_safety_and_control_availability_separate() -> None:
+    """G13 требует ноль опасных ответов и доступный богатый контроль."""
+
+    assert (
+        classification_limit_failures(
+            {"accepted_correct": 12, "false_accept": 0},
+            maximum_false_accepts=0,
+            minimum_accepted_correct=12,
+        )
+        == ()
+    )
+    assert classification_limit_failures(
+        {"accepted_correct": 10, "false_accept": 1},
+        maximum_false_accepts=0,
+        minimum_accepted_correct=12,
+    ) == (
+        "ложных принятий 1 > 0",
+        "корректных принятий 10 < 12",
+    )
+
+
+def test_classification_limits_reject_negative_values() -> None:
+    """Отрицательный лимит не должен превращать критерий в бессмыслицу."""
+
+    with pytest.raises(ValueError, match="неотрицательными"):
+        classification_limit_failures(
+            {},
+            maximum_false_accepts=-1,
         )

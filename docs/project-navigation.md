@@ -115,6 +115,7 @@ Inlier-точки — пары, согласующиеся с найденной
 | `terrain_evaluation.py` | Независимо оценивает ошибку точек и длин на рельефе, не переиспользуя точки подгонки. |
 | `relative_measurement.py` | Считает вектор «цель → попадание» и раздельно оценивает ошибку компонент, длины, направления и знака. |
 | `clutter_geometry.py` | Детерминированно размещает камни, пни и кусты в метрах без зависимости от Blender. |
+| `ground_texture.py` | Детерминированно создаёт богатую, низкодетальную и периодическую текстуры земли без зависимости от Blender. |
 | `interaction_evaluation.py` | Присваивает продуктовый исход с учётом решения gate, ошибки вектора и ошибок знака. |
 
 ### Поиск места на CLOUD
@@ -161,6 +162,8 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g11r_relative_*.json` | G11: завершённые оценки вектора «цель → попадание». |
 | `synthetic_3d_g12_interaction_scenes.json` | G12: три новые сцены с независимыми seed текстуры и объектов. |
 | `synthetic_3d_g12_pose_interactions.json` | G12: замороженные позы, ухудшения кадра, ошибка маски и критерии. |
+| `synthetic_3d_g13_texture_classes.json` | G13: согласованные seed, классы текстуры, объекты и позы. |
+| `synthetic_3d_g13_texture_evaluation.json` | G13: продуктовый вектор и заранее заданные критерии по классам. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -195,7 +198,7 @@ Blender и ступени G0–G12:
 - `synthetic_3d_annotation_robustness.py` — G8;
 - `synthetic_3d_terrain_pose.py` — G9, G10 и pose-sweep G11;
 - `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10–G11;
-- `synthetic_3d_pose_interactions.py` — G12: сочетания позы, качества и маски.
+- `synthetic_3d_pose_interactions.py` — G12--G13: совместная оценка позы, качества, маски и класса текстуры.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -275,6 +278,7 @@ Blender и ступени G0–G12:
 - [synthetic-3d-terrain-pose-plan.md](synthetic-3d-terrain-pose-plan.md) — план G9;
 - [synthetic-3d-terrain-pose-report.md](synthetic-3d-terrain-pose-report.md) — отрицательный итог G9;
 - [synthetic-3d-pose-interactions-report.md](synthetic-3d-pose-interactions-report.md) — взаимодействия G12;
+- [synthetic-3d-texture-class-plan.md](synthetic-3d-texture-class-plan.md) — замороженный план G13;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 - [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;

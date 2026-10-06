@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 vehera
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""G12: взаимодействие умеренных искажений около границ позы G11."""
+"""G12--G13: совместная оценка позы, изображения и класса текстуры."""
 
 from __future__ import annotations
 
@@ -18,7 +18,10 @@ import cv2
 import numpy as np
 
 from aerial_mapper.alignment import AlignmentFailure, align_frame_to_reference
-from aerial_mapper.interaction_evaluation import summarize_product_gate
+from aerial_mapper.interaction_evaluation import (
+    classification_limit_failures,
+    summarize_product_gate,
+)
 from aerial_mapper.measurement import MeasurementFailure
 from aerial_mapper.metric_recovery import (
     MetricRecoveryThresholds,
@@ -516,9 +519,15 @@ def main() -> None:
     pair_reports: dict[str, Any] = {}
     pair_shortfalls: list[dict[str, Any]] = []
     mask_reports: dict[str, Any] = {}
+    surface_metadata: dict[str, dict[str, Any]] = {}
 
     for surface_number, surface in enumerate(protocol["surfaces"]):
         surface_id = surface["id"]
+        texture_class = str(surface.get("texture_class", "rich_irregular"))
+        surface_metadata[surface_id] = {
+            "scene_seed": int(surface.get("scene_seed", protocol["seed"])),
+            "texture_class": texture_class,
+        }
         scene_directory = source_output / "scenes" / surface_id
         truth = load_truth(scene_directory)
         calibration, groups, anchor_indices = build_map_calibration(
@@ -660,7 +669,10 @@ def main() -> None:
                 alignment_rows.append(
                     {
                         "surface_id": surface_id,
-                        "scene_seed": surface["scene_seed"],
+                        "scene_seed": int(
+                            surface.get("scene_seed", protocol["seed"])
+                        ),
+                        "texture_class": texture_class,
                         "repeat_id": repeat_id,
                         "case_id": case_id,
                         "mask_contamination_fraction": fraction,
@@ -727,6 +739,9 @@ def main() -> None:
         vector_rows,
         maximum_vector_error_p95_m=product_limit,
     )
+    for row in vector_summaries:
+        row["texture_class"] = surface_metadata[row["surface_id"]]["texture_class"]
+
     absolute_counts = classification_counts(
         alignment_rows,
         field="absolute_classification",
@@ -748,6 +763,44 @@ def main() -> None:
         or not row["target_alignment"]["alignment_constructed"]
         for row in alignment_rows
     )
+    texture_class_counts = {
+        texture_class: classification_counts(
+            [
+                row
+                for row in vector_summaries
+                if row["pipeline"] == "cross_frame"
+                and row["texture_class"] == texture_class
+            ]
+        )
+        for texture_class in sorted(
+            {metadata["texture_class"] for metadata in surface_metadata.values()}
+        )
+    }
+    for texture_class, counts in texture_class_counts.items():
+        counts["alignment_failure"] = sum(
+            row["texture_class"] == texture_class
+            and (
+                not row["impact_alignment"]["alignment_constructed"]
+                or not row["target_alignment"]["alignment_constructed"]
+            )
+            for row in alignment_rows
+        )
+    class_success_failures: list[str] = []
+    for texture_class, criteria in experiment.get(
+        "texture_class_success",
+        {},
+    ).items():
+        failures = classification_limit_failures(
+            texture_class_counts.get(texture_class, {}),
+            maximum_false_accepts=int(criteria["maximum_false_accepts"]),
+            minimum_accepted_correct=int(
+                criteria.get("minimum_accepted_correct", 0)
+            ),
+        )
+        class_success_failures.extend(
+            f"{texture_class}: {failure}" for failure in failures
+        )
+
     accepted = [
         row for row in vector_summaries if row["classification"] == "accepted_correct"
     ]
@@ -772,8 +825,17 @@ def main() -> None:
     )
     minimum_pair_count = min(observed_pair_counts)
     success = experiment["preregistered_success"]
+    maximum_absolute_false_accepts = success.get(
+        "maximum_absolute_false_accepts"
+    )
     preregistered_passed = bool(
         false_accept_count <= int(success["maximum_false_accepts"])
+        and (
+            maximum_absolute_false_accepts is None
+            or absolute_counts["false_accept"]
+            <= int(maximum_absolute_false_accepts)
+        )
+        and not class_success_failures
         and len(measurement_failures)
         <= int(success["maximum_measurement_failures"])
         and minimum_pair_count >= int(success["minimum_pairs_per_vector"])
@@ -820,8 +882,11 @@ def main() -> None:
         "frozen_product_thresholds": experiment["product_thresholds"],
         "preregistered_success": success,
         "preregistered_passed": preregistered_passed,
+        "surface_metadata": surface_metadata,
         "absolute_classification_counts": absolute_counts,
         "product_classification_counts": product_counts,
+        "texture_class_classification_counts": texture_class_counts,
+        "texture_class_success_failures": class_success_failures,
         "false_accept_count": false_accept_count,
         "accepted_vector_error_p95_max_m": accepted_p95_max,
         "accepted_sign_error_count": accepted_sign_errors,
@@ -843,7 +908,10 @@ def main() -> None:
             "Поверхность земли плоская.",
         ],
     }
-    report_path = arguments.output / "g12_pose_interactions_report.json"
+    report_path = arguments.output / experiment.get(
+        "report_filename",
+        "g12_pose_interactions_report.json",
+    )
     report_path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8",

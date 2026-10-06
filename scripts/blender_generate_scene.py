@@ -26,6 +26,11 @@ import numpy as np
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from aerial_mapper.ground_texture import generate_ground_texture  # noqa: E402
+
 COLLECTION_NAMES = (
     "Ground",
     "Objects",
@@ -146,72 +151,19 @@ def make_metric_texture(
     description: dict[str, Any],
     output_directory: Path,
 ) -> bpy.types.Image:
-    """Создаёт детерминированную псевдоаэросъёмку для плоского опыта.
+    """Создаёт выбранный детерминированный класс текстуры поверхности земли.
 
-    Текстура содержит признаки разных масштабов: плавный фон, мелкие ячейки,
-    дороги, штрихи и уникальные цветные площадки. Она не пытается выглядеть как
-    реальный город. Её задача — дать SIFT достаточно неповторяющихся деталей,
-    не нарушая главное допущение первого опыта: все точки лежат в одной
-    плоскости Z=0.
+    Численная генерация живёт в обычном модуле проекта и тестируется без
+    Blender. Здесь остаётся только перенос RGB-массива в Blender Image.
     """
 
     texture_specification = description["world"]["metric_texture"]
     width = int(texture_specification["width_pixels"])
     height = int(texture_specification["height_pixels"])
-    if width < 64 or height < 64:
-        raise ValueError("Метрическая текстура должна быть не меньше 64 x 64")
-
-    random_generator = np.random.default_rng(description["seed"])
-    y_coordinates, x_coordinates = np.indices((height, width), dtype=np.float32)
-    x_fraction = x_coordinates / max(width - 1, 1)
-    y_fraction = y_coordinates / max(height - 1, 1)
-
-    # Низкочастотный фон напоминает неоднородность поля или грунта. Он нужен
-    # вместе с геометрическими элементами, потому что один регулярный узор дал
-    # бы множество неоднозначных соответствий.
-    background = np.empty((height, width, 3), dtype=np.float32)
-    background[..., 0] = 0.18 + 0.07 * np.sin(17.0 * x_fraction + 3.0 * y_fraction)
-    background[..., 1] = 0.34 + 0.09 * np.sin(11.0 * y_fraction - 5.0 * x_fraction)
-    background[..., 2] = 0.14 + 0.05 * np.cos(13.0 * (x_fraction + y_fraction))
-
-    # Случайные, но фиксированные клетки создают углы и локальную текстуру.
-    cell_size = 12
-    grid_height = math.ceil(height / cell_size)
-    grid_width = math.ceil(width / cell_size)
-    cell_noise = random_generator.normal(0.0, 0.055, (grid_height, grid_width, 1))
-    cell_noise = np.repeat(np.repeat(cell_noise, cell_size, axis=0), cell_size, axis=1)
-    background += cell_noise[:height, :width]
-    image_rgb = np.clip(background, 0.03, 0.92)
-
-    # Две дороги и разметка дают хорошо различимые длинные структуры, но их
-    # пересечение смещено от центра, чтобы не создавать лишнюю симметрию.
-    horizontal_road = np.abs(y_fraction - 0.37) < 0.055
-    diagonal_road = np.abs(y_fraction - (0.83 * x_fraction + 0.05)) < 0.035
-    image_rgb[horizontal_road | diagonal_road] = (0.115, 0.125, 0.14)
-    horizontal_marking = (np.abs(y_fraction - 0.37) < 0.004) & (
-        (x_coordinates.astype(np.int32) // 55) % 2 == 0
+    image_rgb = generate_ground_texture(
+        texture_specification,
+        seed=int(description["seed"]),
     )
-    diagonal_distance = np.abs(y_fraction - (0.83 * x_fraction + 0.05))
-    diagonal_marking = (diagonal_distance < 0.003) & (
-        ((x_coordinates + y_coordinates).astype(np.int32) // 70) % 2 == 0
-    )
-    image_rgb[horizontal_marking | diagonal_marking] = (0.92, 0.78, 0.18)
-
-    # Уникальные площадки разных размеров работают как локальные ориентиры.
-    for index in range(34):
-        center_x = int(random_generator.integers(35, width - 35))
-        center_y = int(random_generator.integers(35, height - 35))
-        half_width = int(random_generator.integers(9, 31))
-        half_height = int(random_generator.integers(8, 27))
-        color = random_generator.uniform(0.12, 0.92, size=3)
-        x_start = max(0, center_x - half_width)
-        x_stop = min(width, center_x + half_width)
-        y_start = max(0, center_y - half_height)
-        y_stop = min(height, center_y + half_height)
-        image_rgb[y_start:y_stop, x_start:x_stop] = color
-        border = 3 + index % 4
-        image_rgb[y_start : min(y_stop, y_start + border), x_start:x_stop] = 0.96
-        image_rgb[max(y_start, y_stop - border) : y_stop, x_start:x_stop] = 0.04
 
     alpha = np.ones((height, width, 1), dtype=np.float32)
     image_rgba = np.concatenate((image_rgb, alpha), axis=2)
@@ -228,7 +180,6 @@ def make_metric_texture(
     image.save()
     image.pack()
     return image
-
 
 def build_planar_metric_ground(
     description: dict[str, Any],

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "experiment": "G13 texture-class product-vector evaluation",
+  "report_filename": "g13_texture_classes_report.json",
+  "seed": 20261310,
+  "source_protocol": "experiments/configs/synthetic_3d_g13_texture_classes.json",
+  "source_output": "outputs/synthetic_3d/g13_texture_classes",
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "displacement_vectors_xy_m": [
+    {
+      "id": "north_2m",
+      "delta_xy_m": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "north_5m",
+      "delta_xy_m": [
+        0,
+        5
+      ]
+    },
+    {
+      "id": "north_10m",
+      "delta_xy_m": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "east4_north8",
+      "delta_xy_m": [
+        4,
+        8
+      ]
+    },
+    {
+      "id": "west4_north8",
+      "delta_xy_m": [
+        -4,
+        8
+      ]
+    },
+    {
+      "id": "east4_south8",
+      "delta_xy_m": [
+        4,
+        -8
+      ]
+    }
+  ],
+  "maximum_pairs_per_vector": 20,
+  "minimum_pairs_per_vector": 5,
+  "pair_vector_tolerance_m": 0.05,
+  "target_frame_camera_id": "repeat_same",
+  "safe_mask_erosion_px": 9,
+  "cases": [
+    {
+      "id": "c00_nominal"
+    }
+  ],
+  "product_thresholds": {
+    "maximum_vector_error_p95_m": 0.25,
+    "severe_vector_error_m": 0.5,
+    "maximum_sign_errors": 0
+  },
+  "preregistered_success": {
+    "maximum_false_accepts": 0,
+    "maximum_absolute_false_accepts": 0,
+    "maximum_measurement_failures": 0,
+    "minimum_pairs_per_vector": 5,
+    "maximum_accepted_vector_error_p95_m": 0.25,
+    "maximum_accepted_sign_errors": 0
+  },
+  "texture_class_success": {
+    "rich_irregular": {
+      "minimum_accepted_correct": 12,
+      "maximum_false_accepts": 0
+    },
+    "low_detail": {
+      "minimum_accepted_correct": 0,
+      "maximum_false_accepts": 0
+    },
+    "periodic_rows": {
+      "minimum_accepted_correct": 0,
+      "maximum_false_accepts": 0
+    }
+  },
+  "design_note": "Matched seeds preserve clutter geometry; only ground texture class changes.",
+  "primary_sources": [
+    "https://www.cs.ubc.ca/~lowe/papers/ijcv04.pdf",
+    "https://docs.opencv.org/4.x/dc/dc3/tutorial_py_matcher.html",
+    "https://docs.blender.org/api/4.5/bpy.types.Image.html"
+  ]
+}

@@ -94,7 +94,7 @@ def build_scene_description(
     return {
         "schema_version": 1,
         "scenario_id": f"g9_{surface['id']}",
-        # Один протокол G12 содержит несколько независимых texture/clutter seed.
+        # Протоколы G12--G13 содержат независимые texture/clutter seed.
         # Старые конфигурации не задают scene_seed и сохраняют прежнее поведение.
         "seed": int(surface.get("scene_seed", protocol["seed"])),
         "world": {
@@ -103,7 +103,10 @@ def build_scene_description(
             "ground_size_m": world["ground_size_m"],
             "appearance": "terrain_metric_texture",
             "show_control_points": False,
-            "metric_texture": world["metric_texture"],
+            "metric_texture": {
+                **world["metric_texture"],
+                **surface.get("metric_texture", {}),
+            },
             "terrain": {
                 **surface["terrain"],
                 "grid_vertices_xy": world["grid_vertices_xy"],
