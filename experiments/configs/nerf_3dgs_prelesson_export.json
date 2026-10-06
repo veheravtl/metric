@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "experiment": "Prelesson Blender camera export for NeRF and 3DGS",
+  "source_scene": "outputs/synthetic_3d/g13_texture_classes/scenes/rich_seed_1",
+  "train_camera_ids": [
+    "teach_000",
+    "repeat_lateral_0_4h",
+    "repeat_lateral_0_8h"
+  ],
+  "test_camera_ids": [
+    "repeat_tilt_40deg"
+  ],
+  "copy_ground_masks": true,
+  "validation_thresholds": {
+    "maximum_projection_p95_px": 0.001,
+    "maximum_projection_error_px": 0.001,
+    "maximum_central_ray_angle_degrees": 0.001
+  },
+  "limitations": [
+    "Четырёх уникальных ракурсов недостаточно для содержательного обучения или сравнения NeRF и 3DGS.",
+    "Экспорт проверяет формат, оси, intrinsics, extrinsics, лучи и маски, но не качество реконструкции.",
+    "Используются идеальные позы и pinhole-камера Blender без дисторсии.",
+    "Маски являются скрытой синтетической истиной; в реальном Teach их ещё нужно получить и проверить.",
+    "Файлы transforms_train/test совместимы по структуре с Synthetic NeRF, но исходные RGB-кадры не имеют alpha-канала."
+  ],
+  "primary_sources": [
+    "https://github.com/bmild/nerf",
+    "https://docs.nerf.studio/quickstart/data_conventions.html",
+    "https://github.com/graphdeco-inria/gaussian-splatting",
+    "https://colmap.github.io/format.html"
+  ]
+}

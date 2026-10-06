@@ -121,6 +121,7 @@ Inlier-точки — пары, согласующиеся с найденной
 | `clutter_geometry.py` | Детерминированно размещает камни, пни и кусты в метрах без зависимости от Blender. |
 | `ground_texture.py` | Детерминированно создаёт богатую, низкодетальную и периодическую текстуры земли без зависимости от Blender. |
 | `texture_ambiguity.py` | Измеряет долю почти одинаковых SIFT-признаков в удалённых частях Teach и выдаёт предварительный отказ. |
+| `radiance_camera.py` | Переводит настройки Blender в pinhole intrinsics, проверяет camera-to-world и строит мировые пиксельные лучи. |
 | `interaction_evaluation.py` | Присваивает продуктовый исход с учётом решения gate, ошибки вектора и ошибок знака. |
 
 ### Поиск места на CLOUD
@@ -170,6 +171,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g13_texture_classes.json` | G13: согласованные seed, классы текстуры, объекты и позы. |
 | `synthetic_3d_g13_texture_evaluation.json` | G13: продуктовый вектор и заранее заданные критерии по классам. |
 | `synthetic_3d_g13r_ambiguity.json` | G13-R: frozen-пороги самопохожести и девять новых holdout-сцен. |
+| `nerf_3dgs_prelesson_export.json` | Подготовительный экспорт четырёх камер, train/test split и строгие пороги проекции. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -206,6 +208,7 @@ Blender и ступени G0–G13-R:
 - `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10–G11;
 - `synthetic_3d_pose_interactions.py` — G12--G13: совместная оценка позы, качества, маски и класса текстуры.
 - `synthetic_3d_texture_ambiguity.py` — G13-R: Teach-самопохожесть, holdout и переоценка исходов G13.
+- `export_radiance_field_dataset.py` — экспорт камер и масок в Nerfstudio/Synthetic NeRF с проверкой проекций.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -289,6 +292,7 @@ Blender и ступени G0–G13-R:
 - [synthetic-3d-texture-class-report.md](synthetic-3d-texture-class-report.md) — отрицательный результат G13;
 - [synthetic-3d-texture-ambiguity-plan.md](synthetic-3d-texture-ambiguity-plan.md) — замороженный план G13-R;
 - [synthetic-3d-texture-ambiguity-report.md](synthetic-3d-texture-ambiguity-report.md) — положительный результат G13-R;
+- [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 - [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;
