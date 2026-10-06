@@ -2,7 +2,7 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-06 после завершения G10 с распределённым трёхмерным мусором.
+2026-10-06 после завершения G11 с поиском границ повторной позы.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -15,15 +15,17 @@
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G10](synthetic-3d-clutter-report.md) — текущая граница устойчивости
-   к статичным объектам над плоской землёй.
-4. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
+3. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
+   базиса, высоты и наклона повторной камеры.
+4. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
+   объектам над плоской землёй.
+5. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
    продуктовая постановка и точность вектора «цель → попадание».
-5. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+6. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
    метрической модели на гладком рельефе и отрицательный итог G9.
-6. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+7. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-7. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G10 и
+8. [План 3D-гейта](synthetic-3d-gate-plan.md) — история ступеней G0–G11 и
    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
@@ -152,6 +154,8 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g10r_relative_clutter.json` | G10: относительная оценка pilot. |
 | `synthetic_3d_g10_clutter_boundary.json` | G10: follow-up крупных объектов. |
 | `synthetic_3d_g10r_relative_clutter_boundary.json` | G10: относительная оценка follow-up. |
+| `synthetic_3d_g11_pose_*.json` | G11: основные и post-hoc sweep бокового базиса, высоты и наклона. |
+| `synthetic_3d_g11r_relative_*.json` | G11: завершённые оценки вектора «цель → попадание». |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
 нельзя без новой версии эксперимента и явного объяснения.
@@ -176,7 +180,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G10:
+Blender и ступени G0–G11:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
@@ -184,8 +188,8 @@ Blender и ступени G0–G10:
 - `synthetic_3d_robustness_suite.py` — G3–G6;
 - `synthetic_3d_teach_repeat_gate.py` — G7;
 - `synthetic_3d_annotation_robustness.py` — G8;
-- `synthetic_3d_terrain_pose.py` — G9;
-- `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10.
+- `synthetic_3d_terrain_pose.py` — G9, G10 и pose-sweep G11;
+- `synthetic_3d_relative_displacement.py` — G9-R и относительная оценка G10–G11.
 
 ## Инструментальные скрипты: `scripts/`
 
@@ -264,6 +268,7 @@ Blender и ступени G0–G10:
 - [synthetic-3d-annotation-robustness-report.md](synthetic-3d-annotation-robustness-report.md) — G8;
 - [synthetic-3d-terrain-pose-plan.md](synthetic-3d-terrain-pose-plan.md) — план G9;
 - [synthetic-3d-terrain-pose-report.md](synthetic-3d-terrain-pose-report.md) — отрицательный итог G9;
+- [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
 - [synthetic-3d-relative-displacement-report.md](synthetic-3d-relative-displacement-report.md) — относительный вектор промаха G9-R;
 - [synthetic-3d-clutter-report.md](synthetic-3d-clutter-report.md) — статичный трёхмерный мусор G10;
 - [blender-quickstart.md](blender-quickstart.md) — ручной просмотр сцены.
