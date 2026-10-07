@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from aerial_mapper.paired_stability import (
+    failed_alignment_seed_decisions,
     gate_safety_flags,
     stability_seeds_for_pair,
 )
@@ -41,9 +42,7 @@ def test_gate_safety_flags_separate_any_and_all_seed_failures() -> None:
 def test_g14a2r_protocol_freezes_case_and_seed_counts() -> None:
     """Repair не может удалять физические случаи или неудобный stability seed."""
 
-    repair_path = Path(
-        "experiments/configs/synthetic_3d_g14a2r_paired_stability.json"
-    )
+    repair_path = Path("experiments/configs/synthetic_3d_g14a2r_paired_stability.json")
     repair = json.loads(repair_path.read_text(encoding="utf-8"))
     source_path = Path(repair["source_experiment_config"])
     source = json.loads(source_path.read_text(encoding="utf-8"))
@@ -55,9 +54,23 @@ def test_g14a2r_protocol_freezes_case_and_seed_counts() -> None:
     cases_per_pair = (
         1
         + len(source["raw_boundary_k1"])
-        + len(source["calibration_true_k1"])
-        * len(source["calibration_error_k1"])
+        + len(source["calibration_true_k1"]) * len(source["calibration_error_k1"])
     )
     assert pair_count * cases_per_pair == 423
     assert pair_count * cases_per_pair * len(repair["stability_seed_offsets"]) == 2115
     assert all(value == 0 for value in repair["preregistered_safety"].values())
+
+
+def test_failed_alignment_is_an_explicit_rejection_for_every_seed() -> None:
+    """Ранний отказ не должен исчезать из фиксированного знаменателя."""
+
+    decisions = failed_alignment_seed_decisions(
+        seeds=[11, 22, 33], failure="Недостаточно совпадений"
+    )
+    assert [decision["seed"] for decision in decisions] == [11, 22, 33]
+    assert all(decision["gate_accepted"] is False for decision in decisions)
+    assert all(decision["quality"] is None for decision in decisions)
+    assert all(
+        decision["gate_failures"] == ["Недостаточно совпадений"]
+        for decision in decisions
+    )

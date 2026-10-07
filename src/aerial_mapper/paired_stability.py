@@ -43,3 +43,25 @@ def gate_safety_flags(
     any_false_accept = not metric_within_limit and any(accepted_by_seed)
     all_false_accept = not metric_within_limit and all(accepted_by_seed)
     return any_false_accept, all_false_accept
+
+
+def failed_alignment_seed_decisions(
+    *, seeds: list[int], failure: str
+) -> list[dict[str, object]]:
+    """Явно записывает одинаковый ранний отказ для каждого seed.
+
+    Если alignment не построен, случайная stability-диагностика не запускается.
+    Однако протокол с фиксированным числом решений должен сохранить факт, что
+    каждый заранее назначенный seed закончился безопасным отказом, а не исчез
+    из знаменателя.
+    """
+
+    return [
+        {
+            "seed": int(seed),
+            "gate_accepted": False,
+            "gate_failures": [failure],
+            "quality": None,
+        }
+        for seed in seeds
+    ]

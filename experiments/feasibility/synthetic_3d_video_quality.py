@@ -17,7 +17,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from aerial_mapper.metric_recovery import MetricRecoveryThresholds
-from aerial_mapper.paired_stability import stability_seeds_for_pair
+from aerial_mapper.paired_stability import (
+    failed_alignment_seed_decisions,
+    stability_seeds_for_pair,
+)
 from aerial_mapper.synthetic_robustness import (
     ImageDegradation,
     apply_image_degradation,
@@ -143,8 +146,7 @@ def summarize_factor(rows: list[dict[str, Any]]) -> dict[str, Any]:
         for decision in row["evaluation"]["seed_decisions"]
     ]
     false_decisions = sum(
-        not row["evaluation"]["metric_within_limit"]
-        and decision["gate_accepted"]
+        not row["evaluation"]["metric_within_limit"] and decision["gate_accepted"]
         for row in rows
         for decision in row["evaluation"]["seed_decisions"]
     )
@@ -324,6 +326,16 @@ def main() -> None:
                     protocol=protocol,
                     limit_m=limit_m,
                 )
+                if not evaluation["alignment_constructed"]:
+                    failure = evaluation["alignment_failure"]
+                    if not isinstance(failure, str):
+                        raise RuntimeError("Ранний отказ не сохранил причину")
+                    evaluation["seed_decisions"] = failed_alignment_seed_decisions(
+                        seeds=stability_seeds,
+                        failure=failure,
+                    )
+                    evaluation["gate_accept_count"] = 0
+                    evaluation["gate_accept_fraction"] = 0.0
                 rows.append(
                     {
                         "surface_id": surface_id,
@@ -354,17 +366,13 @@ def main() -> None:
         factor: summarize_factor([row for row in rows if row["factor"] == factor])
         for factor in experiment["factors"]
     }
-    decision_count = sum(
-        len(row["evaluation"]["seed_decisions"]) for row in rows
-    )
+    decision_count = sum(len(row["evaluation"]["seed_decisions"]) for row in rows)
     decision_outcomes = Counter()
     for row in rows:
         within = row["evaluation"]["metric_within_limit"]
         for decision in row["evaluation"]["seed_decisions"]:
             if decision["gate_accepted"]:
-                decision_outcomes[
-                    "accepted_correct" if within else "false_accept"
-                ] += 1
+                decision_outcomes["accepted_correct" if within else "false_accept"] += 1
             else:
                 decision_outcomes[
                     "rejected_valid" if within else "rejected_invalid"
