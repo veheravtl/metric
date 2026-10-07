@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-A radial lens distortion and exact calibration",
+  "seed": 20261400,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_output": "outputs/synthetic_3d/g12_interaction_scenes",
+  "surface_ids": [
+    "large240_seed_a",
+    "large240_seed_b",
+    "large240_seed_c"
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "distortion_cases": [
+    {"id": "k1_0", "k1": 0.0},
+    {"id": "k1_barrel_0_025", "k1": -0.025},
+    {"id": "k1_barrel_0_050", "k1": -0.05},
+    {"id": "k1_barrel_0_100", "k1": -0.1},
+    {"id": "k1_pincushion_0_025", "k1": 0.025},
+    {"id": "k1_pincushion_0_050", "k1": 0.05},
+    {"id": "k1_pincushion_0_100", "k1": 0.1}
+  ],
+  "pipelines": ["raw", "calibrated"],
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "maximum_point_round_trip_error_px": 0.001,
+    "minimum_nominal_accepted_correct": 9,
+    "maximum_nominal_false_accepts": 0,
+    "minimum_calibrated_accepted_correct": 48,
+    "maximum_calibrated_false_accepts": 0
+  },
+  "preregistered_raw_safety": {
+    "maximum_false_accepts": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html",
+    "https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html",
+    "https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html"
+  ]
+}
