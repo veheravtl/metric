@@ -2,8 +2,8 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-07 после G14-A2-R: физический контроль валиден, но большинство ложных
-принятий слабой дисторсии и неточной коррекции устойчиво ко всем пяти seed.
+2026-10-07 после G14-B-R: строковая модель валидна, но 12 rolling-shutter
+случаев дали устойчивые ложные принятия всеми пятью seed.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -184,6 +184,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g14a_lens_distortion.json` | G14-A: уровни `k1`, точная коррекция и заранее заданные критерии. |
 | `synthetic_3d_g14a2_calibration_uncertainty.json` | G14-A2: слабые `k1` и ошибка оценённой калибровки. |
 | `synthetic_3d_g14a2r_paired_stability.json` | G14-A2-R: пять парных seed и раздельные критерии валидности и безопасности. |
+| `synthetic_3d_g14b_rolling_shutter.json` | G14-B: строковые позы, движения и frozen-критерии repair. |
 | `nerf_3dgs_prelesson_export.json` | Подготовительный экспорт четырёх камер, train/test split и строгие пороги проекции. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
@@ -224,6 +225,7 @@ Blender и ступени G0–G14-A:
 - `synthetic_3d_lens_distortion.py` — G14-A: дисторсия Repeat, точная коррекция и метрическая оценка.
 - `synthetic_3d_calibration_uncertainty.py` — G14-A2: малые уровни и ошибка `k1`.
 - `synthetic_3d_calibration_uncertainty_repair.py` — G14-A2-R: парная многосидовая проверка stability.
+- `synthetic_3d_rolling_shutter.py` — G14-B-R: строковые позы движущейся камеры.
 - `export_radiance_field_dataset.py` — экспорт камер и масок в Nerfstudio/Synthetic NeRF с проверкой проекций.
 
 ## Инструментальные скрипты: `scripts/`
@@ -314,6 +316,9 @@ Blender и ступени G0–G14-A:
 - [synthetic-3d-calibration-uncertainty-report.md](synthetic-3d-calibration-uncertainty-report.md) — формально невалидный диагностический результат G14-A2;
 - [synthetic-3d-calibration-uncertainty-repair-plan.md](synthetic-3d-calibration-uncertainty-repair-plan.md) — замороженный repair-план G14-A2-R;
 - [synthetic-3d-calibration-uncertainty-repair-report.md](synthetic-3d-calibration-uncertainty-repair-report.md) — валидный отрицательный итог G14-A2-R;
+- [synthetic-3d-rolling-shutter-plan.md](synthetic-3d-rolling-shutter-plan.md) — замороженный план G14-B;
+- [synthetic-3d-rolling-shutter-repair-plan.md](synthetic-3d-rolling-shutter-repair-plan.md) — зарегистрированный численный repair G14-B-R;
+- [synthetic-3d-rolling-shutter-report.md](synthetic-3d-rolling-shutter-report.md) — валидный отрицательный итог G14-B-R;
 - [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
 - [3d-reconstruction-refrigerator.md](3d-reconstruction-refrigerator.md) — решение по отложенной 3D-ветке, ресурсы и точка возобновления;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
