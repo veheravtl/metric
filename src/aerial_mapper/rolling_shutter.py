@@ -88,15 +88,11 @@ def pose_at_scan_fraction(
     if not np.isfinite(fraction):
         raise ValueError("Доля чтения должна быть конечной")
     translation = np.asarray(motion.translation_local_m, dtype=np.float64)
-    rotation_rad = np.deg2rad(
-        np.asarray(motion.rotation_local_deg, dtype=np.float64)
-    )
+    rotation_rad = np.deg2rad(np.asarray(motion.rotation_local_deg, dtype=np.float64))
     rotation_increment, _ = cv2.Rodrigues(rotation_rad * float(fraction))
     result = np.eye(4, dtype=np.float64)
     result[:3, :3] = centre[:3, :3] @ rotation_increment
-    result[:3, 3] = centre[:3, 3] + centre[:3, :3] @ (
-        translation * float(fraction)
-    )
+    result[:3, 3] = centre[:3, 3] + centre[:3, :3] @ (translation * float(fraction))
     return result
 
 
@@ -237,6 +233,20 @@ def warp_planar_rolling_shutter(
     validate_camera_to_world(centre)
 
     height, width = image.shape[:2]
+    translation = np.asarray(motion.translation_local_m, dtype=np.float64)
+    rotation = np.asarray(motion.rotation_local_deg, dtype=np.float64)
+    if np.count_nonzero(translation) == 0 and np.count_nonzero(rotation) == 0:
+        grid_x, grid_y = np.meshgrid(
+            np.arange(width, dtype=np.float32),
+            np.arange(height, dtype=np.float32),
+        )
+        return RollingShutterWarp(
+            image_rgb=image.copy(),
+            valid_mask=np.ones((height, width), dtype=bool),
+            source_xy=np.stack((grid_x, grid_y), axis=2),
+            maximum_displacement_px=0.0,
+        )
+
     source_xy = np.full((height, width, 2), -1.0, dtype=np.float32)
     valid = np.zeros((height, width), dtype=bool)
     x_values = np.arange(width, dtype=np.float64)

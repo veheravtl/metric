@@ -35,6 +35,12 @@ def test_identity_warp_is_pixel_exact() -> None:
     intrinsics = PinholeIntrinsics(8, 6, 8.0, 8.0, 4.0, 3.0)
     image = np.arange(8 * 6 * 3, dtype=np.uint8).reshape(6, 8, 3)
     centre = np.eye(4)
+    angle = np.deg2rad(37.0)
+    cosine = np.float32(np.cos(angle))
+    sine = np.float32(np.sin(angle))
+    centre[:3, :3] = np.array(
+        [[cosine, -sine, 0.0], [sine, cosine, 0.0], [0.0, 0.0, 1.0]]
+    )
     centre[2, 3] = 10.0
     motion = RollingShutterMotion((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
 
@@ -43,6 +49,12 @@ def test_identity_warp_is_pixel_exact() -> None:
     np.testing.assert_array_equal(result.image_rgb, image)
     assert result.valid_mask.all()
     assert result.maximum_displacement_px < 1e-12
+    expected_x, expected_y = np.meshgrid(
+        np.arange(8, dtype=np.float32), np.arange(6, dtype=np.float32)
+    )
+    np.testing.assert_array_equal(
+        result.source_xy, np.stack((expected_x, expected_y), axis=2)
+    )
 
 
 def test_projected_point_satisfies_its_own_row_pose() -> None:
