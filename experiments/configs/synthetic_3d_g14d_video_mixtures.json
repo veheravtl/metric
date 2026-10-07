@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-D preregistered combined video-artifact profiles",
+  "seed": 20261422,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_scene_output": "outputs/synthetic_3d/g14b_rolling_shutter",
+  "source_g14c2_config": "experiments/configs/synthetic_3d_g14c2_noise_consensus.json",
+  "source_g14c2_report": "outputs/synthetic_3d/g14c2_noise_consensus/g14c2_noise_consensus_report.json",
+  "surface_ids": [
+    "flat_rich_seed_a",
+    "flat_rich_seed_b",
+    "flat_rich_seed_c"
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "case_mode": "mixed_profiles",
+  "profiles": [
+    {
+      "id": "mild",
+      "blur_sigma_px": 0.5,
+      "resolution_scale": 0.75,
+      "noise_standard_deviation": 10.0,
+      "osd_occlusion_fraction": 0.03,
+      "jpeg_quality": 70
+    },
+    {
+      "id": "moderate",
+      "blur_sigma_px": 1.0,
+      "resolution_scale": 0.5,
+      "noise_standard_deviation": 20.0,
+      "osd_occlusion_fraction": 0.06,
+      "jpeg_quality": 30
+    },
+    {
+      "id": "boundary",
+      "blur_sigma_px": 2.0,
+      "resolution_scale": 0.3333333333,
+      "noise_standard_deviation": 30.0,
+      "osd_occlusion_fraction": 0.10,
+      "jpeg_quality": 15
+    },
+    {
+      "id": "severe",
+      "blur_sigma_px": 3.0,
+      "resolution_scale": 0.25,
+      "noise_standard_deviation": 45.0,
+      "osd_occlusion_fraction": 0.15,
+      "jpeg_quality": 5
+    }
+  ],
+  "artifact_order": [
+    "blur",
+    "resolution",
+    "noise",
+    "osd",
+    "jpeg"
+  ],
+  "artifact_replicate_offsets": [0, 104729, 209759],
+  "stability_seed_offsets": [29, 1063, 2099, 4153, 8231],
+  "stability_trials_per_seed": 30,
+  "stability_subsample_fraction": 0.8,
+  "aggregate_gate": {
+    "rule": "minimum_accept_count",
+    "minimum_accept_count": 5,
+    "component_count": 5
+  },
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "expected_cases_per_scene_pose": 13,
+    "expected_physical_case_count": 117,
+    "expected_component_decision_count": 585,
+    "expected_aggregate_decision_count": 117,
+    "maximum_identity_pixel_difference": 0,
+    "minimum_nominal_alignment_constructed": 9,
+    "maximum_nominal_metric_failures": 0,
+    "maximum_nominal_over_limit": 0,
+    "minimum_nominal_aggregate_accept_count": 9
+  },
+  "preregistered_safety": {
+    "maximum_aggregate_false_accept_cases": 0
+  },
+  "preregistered_availability": {
+    "minimum_profile_accept_fraction": {
+      "mild": 0.5,
+      "moderate": 0.1,
+      "boundary": 0.0,
+      "severe": 0.0
+    },
+    "maximum_nominal_aggregate_reject_count": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html",
+    "https://docs.opencv.org/4.x/dc/dd3/tutorial_gausian_median_blur_bilateral_filter.html",
+    "https://docs.opencv.org/4.10.0/d8/d6a/group__imgcodecs__flags.html",
+    "https://docs.opencv.org/4.11.0/d6/d6e/group__imgproc__draw.html",
+    "https://docs.opencv.org/4.12.0/d9/d0c/group__calib3d.html"
+  ]
+}

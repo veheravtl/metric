@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-C2 narrow noise boundary with unanimous stability consensus",
+  "seed": 20261421,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_scene_output": "outputs/synthetic_3d/g14b_rolling_shutter",
+  "source_g14c_report": "outputs/synthetic_3d/g14c_video_quality/g14c_video_quality_report.json",
+  "surface_ids": [
+    "flat_rich_seed_a",
+    "flat_rich_seed_b",
+    "flat_rich_seed_c"
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "case_mode": "noise_boundary",
+  "noise_standard_deviation_levels": [
+    20.0,
+    22.5,
+    25.0,
+    27.5,
+    30.0,
+    32.5,
+    35.0,
+    37.5,
+    40.0
+  ],
+  "artifact_replicate_offsets": [0, 104729, 209759],
+  "stability_seed_offsets": [17, 1051, 2081, 4127, 8209],
+  "stability_trials_per_seed": 30,
+  "stability_subsample_fraction": 0.8,
+  "aggregate_gate": {
+    "rule": "minimum_accept_count",
+    "minimum_accept_count": 5,
+    "component_count": 5
+  },
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "expected_cases_per_scene_pose": 28,
+    "expected_physical_case_count": 252,
+    "expected_component_decision_count": 1260,
+    "expected_aggregate_decision_count": 252,
+    "maximum_identity_pixel_difference": 0,
+    "minimum_nominal_alignment_constructed": 9,
+    "maximum_nominal_metric_failures": 0,
+    "maximum_nominal_over_limit": 0,
+    "minimum_nominal_aggregate_accept_count": 9
+  },
+  "preregistered_safety": {
+    "maximum_aggregate_false_accept_cases": 0
+  },
+  "preregistered_availability": {
+    "minimum_degraded_aggregate_accept_fraction": 0.10,
+    "maximum_nominal_aggregate_reject_count": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.12.0/d9/d0c/group__calib3d.html",
+    "https://doi.org/10.1145/358669.358692"
+  ]
+}
