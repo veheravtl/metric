@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-A2 weak radial distortion and imperfect calibration",
+  "seed": 20261402,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_output": "outputs/synthetic_3d/g12_interaction_scenes",
+  "surface_ids": [
+    "large240_seed_a",
+    "large240_seed_b",
+    "large240_seed_c"
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "raw_boundary_k1": [
+    -0.025,
+    -0.02,
+    -0.015,
+    -0.01,
+    -0.005,
+    0.005,
+    0.01,
+    0.015,
+    0.02,
+    0.025
+  ],
+  "calibration_true_k1": [-0.05, -0.025, 0.025, 0.05],
+  "calibration_error_k1": [
+    -0.02,
+    -0.01,
+    -0.005,
+    -0.0025,
+    0.0,
+    0.0025,
+    0.005,
+    0.01,
+    0.02
+  ],
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "maximum_exact_point_round_trip_error_px": 0.001,
+    "minimum_nominal_accepted_correct": 9,
+    "maximum_nominal_false_accepts": 0,
+    "minimum_exact_calibration_accepted_correct": 34,
+    "maximum_exact_calibration_false_accepts": 0
+  },
+  "preregistered_raw_boundary_safety": {
+    "maximum_false_accepts": 0
+  },
+  "preregistered_imperfect_calibration_safety": {
+    "maximum_false_accepts": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html",
+    "https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html",
+    "https://docs.opencv.org/5.0/main_modules/calib.html"
+  ]
+}
