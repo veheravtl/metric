@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from aerial_mapper.synthetic_robustness import ImageDegradation, apply_image_degradation
+
 
 @dataclass(frozen=True)
 class JpegRoundTrip:
@@ -29,6 +31,32 @@ class OsdOcclusion:
     actual_fraction: float
 
 
+@dataclass(frozen=True)
+class VideoArtifactProfile:
+    """Параметры упрощённой последовательной модели видеотракта.
+
+    `jpeg_quality=None` означает отсутствие JPEG-цикла. Это важно для
+    номинального контроля: даже quality 100 не обязан побитово сохранять RGB.
+    """
+
+    blur_sigma_px: float = 0.0
+    resolution_scale: float = 1.0
+    noise_standard_deviation: float = 0.0
+    osd_occlusion_fraction: float = 0.0
+    jpeg_quality: int | None = None
+
+
+@dataclass(frozen=True)
+class VideoArtifactResult:
+    """Итоговый RGB и наблюдаемые параметры применённой цепочки."""
+
+    image_rgb: NDArray[np.uint8]
+    metadata: dict[str, object]
+
+
+OSD_RANDOM_SEED_OFFSET = 1_000_003
+
+
 def _validate_rgb(image_rgb: NDArray[np.uint8]) -> NDArray[np.uint8]:
     """Проверяет общий контракт RGB uint8 без неявного преобразования."""
 
@@ -38,9 +66,7 @@ def _validate_rgb(image_rgb: NDArray[np.uint8]) -> NDArray[np.uint8]:
     return image
 
 
-def jpeg_round_trip(
-    image_rgb: NDArray[np.uint8], *, quality: int
-) -> JpegRoundTrip:
+def jpeg_round_trip(image_rgb: NDArray[np.uint8], *, quality: int) -> JpegRoundTrip:
     """Выполняет настоящий JPEG encode/decode с заданным quality 0..100."""
 
     image = _validate_rgb(image_rgb)
@@ -124,3 +150,61 @@ def apply_osd_occlusion(
         occluded_mask=mask,
         actual_fraction=float(np.mean(mask)),
     )
+
+
+def apply_video_artifact_profile(
+    image_rgb: NDArray[np.uint8],
+    profile: VideoArtifactProfile,
+    *,
+    random_seed: int,
+) -> VideoArtifactResult:
+    """Применяет blur → resolution → noise → OSD → JPEG.
+
+    Первые три операции выполняет общий модуль синтетических ухудшений в
+    физически осмысленном порядке: оптика, дискретизация, электронный шум.
+    Псевдо-OSD накладывается после камерного шума, а JPEG моделирует последний
+    цифровой encode/decode. Отдельный offset seed не даёт шуму и раскладке OSD
+    использовать одну и ту же последовательность псевдослучайных чисел.
+    """
+
+    image = _validate_rgb(image_rgb)
+    degraded = apply_image_degradation(
+        image,
+        ImageDegradation(
+            blur_sigma_px=profile.blur_sigma_px,
+            resolution_scale=profile.resolution_scale,
+            noise_standard_deviation=profile.noise_standard_deviation,
+        ),
+        random_seed=random_seed,
+    )
+    height, width = image.shape[:2]
+    metadata: dict[str, object] = {
+        "artifact_order": ["blur", "resolution", "noise", "osd", "jpeg"],
+        "blur_sigma_px": float(profile.blur_sigma_px),
+        "resolution_scale": float(profile.resolution_scale),
+        "intermediate_width_px": int(round(width * profile.resolution_scale)),
+        "intermediate_height_px": int(round(height * profile.resolution_scale)),
+        "noise_standard_deviation": float(profile.noise_standard_deviation),
+        "osd_occlusion_fraction": float(profile.osd_occlusion_fraction),
+        "jpeg_quality": profile.jpeg_quality,
+    }
+
+    osd = apply_osd_occlusion(
+        degraded,
+        fraction=profile.osd_occlusion_fraction,
+        random_seed=random_seed + OSD_RANDOM_SEED_OFFSET,
+    )
+    result = osd.image_rgb
+    metadata["actual_osd_occlusion_fraction"] = osd.actual_fraction
+
+    if profile.jpeg_quality is not None:
+        jpeg = jpeg_round_trip(result, quality=profile.jpeg_quality)
+        result = jpeg.image_rgb
+        metadata["jpeg_encoded_bytes"] = jpeg.encoded_bytes
+    else:
+        metadata["jpeg_encoded_bytes"] = None
+
+    difference = np.abs(result.astype(np.int16) - image.astype(np.int16))
+    metadata["maximum_channel_difference"] = int(np.max(difference))
+    metadata["mean_absolute_channel_difference"] = float(np.mean(difference))
+    return VideoArtifactResult(image_rgb=result, metadata=metadata)

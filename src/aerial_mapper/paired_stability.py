@@ -9,6 +9,8 @@
 опасного принятия хотя бы одним либо всеми повторениями диагностики.
 """
 
+from dataclasses import dataclass
+
 
 def stability_seeds_for_pair(
     *,
@@ -65,3 +67,56 @@ def failed_alignment_seed_decisions(
         }
         for seed in seeds
     ]
+
+
+@dataclass(frozen=True)
+class AggregateGateDecision:
+    """Одно итоговое решение по нескольким фиксированным stability-проверкам.
+
+    `minimum_accept_count` является инженерной политикой безопасного отказа,
+    а не статистически калиброванной вероятностью. Компонентные решения должны
+    быть получены без знания контрольной метрической ошибки.
+    """
+
+    gate_accepted: bool
+    component_accept_count: int
+    component_count: int
+    minimum_accept_count: int
+    gate_failures: tuple[str, ...]
+
+
+def aggregate_gate_decisions(
+    accepted_by_component: list[bool],
+    *,
+    minimum_accept_count: int,
+) -> AggregateGateDecision:
+    """Объединяет фиксированный набор проверок по правилу минимального согласия.
+
+    Например, `minimum_accept_count=5` для пяти компонентов реализует
+    единогласие: один сомневающийся компонент переводит итог в безопасный отказ.
+    Пустой список запрещён, чтобы ранний отказ нельзя было ошибочно принять.
+    """
+
+    if not accepted_by_component:
+        raise ValueError("Для агрегированного gate нужен хотя бы один компонент")
+    component_count = len(accepted_by_component)
+    if not 1 <= minimum_accept_count <= component_count:
+        raise ValueError(
+            "minimum_accept_count должен лежать между 1 и числом компонентов"
+        )
+    accept_count = sum(bool(value) for value in accepted_by_component)
+    accepted = accept_count >= minimum_accept_count
+    failures: tuple[str, ...] = ()
+    if not accepted:
+        failures = (
+            "согласие stability "
+            f"{accept_count}/{component_count} < "
+            f"{minimum_accept_count}/{component_count}",
+        )
+    return AggregateGateDecision(
+        gate_accepted=accepted,
+        component_accept_count=accept_count,
+        component_count=component_count,
+        minimum_accept_count=minimum_accept_count,
+        gate_failures=failures,
+    )
