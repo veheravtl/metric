@@ -2,8 +2,8 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-07 после G14-A: пропущенная слабая дисторсия дала пять ложных принятий,
-а точная коррекция устранила их.
+2026-10-07 после G14-A2-R: физический контроль валиден, но большинство ложных
+принятий слабой дисторсии и неточной коррекции устойчиво ко всем пяти seed.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -11,30 +11,32 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти двенадцать документов в таком порядке:
+Для знакомства с проектом достаточно пройти тринадцать документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
+3. [Отчёт G14-A2-R](synthetic-3d-calibration-uncertainty-repair-report.md) —
+   валидная парная проверка калибровочной ошибки и отрицательный гейт безопасности.
+4. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
    пропущенной дисторсии и эффект известной калибровки.
-4. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
+5. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
    неоднозначной Teach-текстуре и его цена доступностью.
-5. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
+6. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
    гладкой земле и опасное ложное принятие на повторяющихся рядах.
-6. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
+7. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
    пограничной позы, качества кадра и ошибок Teach-маски на новых seed.
-7. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
+8. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
    базиса, высоты и наклона повторной камеры.
-8. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
+9. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
    объектам над плоской землёй.
-9. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
+10. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
    продуктовая постановка и точность вектора «цель → попадание».
-10. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+11. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
    метрической модели на гладком рельефе и отрицательный итог G9.
-11. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+12. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-12. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
+13. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
@@ -180,6 +182,8 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g13_texture_evaluation.json` | G13: продуктовый вектор и заранее заданные критерии по классам. |
 | `synthetic_3d_g13r_ambiguity.json` | G13-R: frozen-пороги самопохожести и девять новых holdout-сцен. |
 | `synthetic_3d_g14a_lens_distortion.json` | G14-A: уровни `k1`, точная коррекция и заранее заданные критерии. |
+| `synthetic_3d_g14a2_calibration_uncertainty.json` | G14-A2: слабые `k1` и ошибка оценённой калибровки. |
+| `synthetic_3d_g14a2r_paired_stability.json` | G14-A2-R: пять парных seed и раздельные критерии валидности и безопасности. |
 | `nerf_3dgs_prelesson_export.json` | Подготовительный экспорт четырёх камер, train/test split и строгие пороги проекции. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
@@ -218,6 +222,8 @@ Blender и ступени G0–G14-A:
 - `synthetic_3d_pose_interactions.py` — G12--G13: совместная оценка позы, качества, маски и класса текстуры.
 - `synthetic_3d_texture_ambiguity.py` — G13-R: Teach-самопохожесть, holdout и переоценка исходов G13.
 - `synthetic_3d_lens_distortion.py` — G14-A: дисторсия Repeat, точная коррекция и метрическая оценка.
+- `synthetic_3d_calibration_uncertainty.py` — G14-A2: малые уровни и ошибка `k1`.
+- `synthetic_3d_calibration_uncertainty_repair.py` — G14-A2-R: парная многосидовая проверка stability.
 - `export_radiance_field_dataset.py` — экспорт камер и масок в Nerfstudio/Synthetic NeRF с проверкой проекций.
 
 ## Инструментальные скрипты: `scripts/`
@@ -304,6 +310,10 @@ Blender и ступени G0–G14-A:
 - [synthetic-3d-texture-ambiguity-report.md](synthetic-3d-texture-ambiguity-report.md) — положительный результат G13-R;
 - [synthetic-3d-lens-distortion-plan.md](synthetic-3d-lens-distortion-plan.md) — замороженный план G14-A;
 - [synthetic-3d-lens-distortion-report.md](synthetic-3d-lens-distortion-report.md) — отрицательный raw-итог и положительная точная коррекция G14-A;
+- [synthetic-3d-calibration-uncertainty-plan.md](synthetic-3d-calibration-uncertainty-plan.md) — замороженный план G14-A2;
+- [synthetic-3d-calibration-uncertainty-report.md](synthetic-3d-calibration-uncertainty-report.md) — формально невалидный диагностический результат G14-A2;
+- [synthetic-3d-calibration-uncertainty-repair-plan.md](synthetic-3d-calibration-uncertainty-repair-plan.md) — замороженный repair-план G14-A2-R;
+- [synthetic-3d-calibration-uncertainty-repair-report.md](synthetic-3d-calibration-uncertainty-repair-report.md) — валидный отрицательный итог G14-A2-R;
 - [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
 - [3d-reconstruction-refrigerator.md](3d-reconstruction-refrigerator.md) — решение по отложенной 3D-ветке, ресурсы и точка возобновления;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
