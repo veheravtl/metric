@@ -2,8 +2,9 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-07 после G14-B-R: строковая модель валидна, но 12 rolling-shutter
-случаев дали устойчивые ложные принятия всеми пятью seed.
+2026-10-07 после G14-C-R: однофакторный видеосрез валиден, но один шумный
+кадр с ошибкой 0,2067 м приняли два из пяти seed. Остальные четыре фактора
+дали ноль ложных принятий.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -11,32 +12,34 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти тринадцать документов в таком порядке:
+Для знакомства с проектом достаточно пройти четырнадцать документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G14-A2-R](synthetic-3d-calibration-uncertainty-repair-report.md) —
+3. [Отчёт G14-C-R](synthetic-3d-video-quality-report.md) — разрешение, шум,
+   JPEG, размытие, псевдо-OSD и пограничное ложное принятие шумного кадра.
+4. [Отчёт G14-A2-R](synthetic-3d-calibration-uncertainty-repair-report.md) —
    валидная парная проверка калибровочной ошибки и отрицательный гейт безопасности.
-4. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
+5. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
    пропущенной дисторсии и эффект известной калибровки.
-5. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
+6. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
    неоднозначной Teach-текстуре и его цена доступностью.
-6. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
+7. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
    гладкой земле и опасное ложное принятие на повторяющихся рядах.
-7. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
+8. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
    пограничной позы, качества кадра и ошибок Teach-маски на новых seed.
-8. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
+9. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
    базиса, высоты и наклона повторной камеры.
-9. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
+10. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
    объектам над плоской землёй.
-10. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
+11. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
    продуктовая постановка и точность вектора «цель → попадание».
-11. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+12. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
    метрической модели на гладком рельефе и отрицательный итог G9.
-12. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+13. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
    устойчивости Teach-разметки и отрицательный итог G8.
-13. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
+14. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
@@ -185,6 +188,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g14a2_calibration_uncertainty.json` | G14-A2: слабые `k1` и ошибка оценённой калибровки. |
 | `synthetic_3d_g14a2r_paired_stability.json` | G14-A2-R: пять парных seed и раздельные критерии валидности и безопасности. |
 | `synthetic_3d_g14b_rolling_shutter.json` | G14-B: строковые позы, движения и frozen-критерии repair. |
+| `synthetic_3d_g14c_video_quality.json` | G14-C: однофакторные уровни качества видеотракта и парная stability-проверка. |
 | `nerf_3dgs_prelesson_export.json` | Подготовительный экспорт четырёх камер, train/test split и строгие пороги проекции. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
@@ -210,7 +214,7 @@ JSON-файлы фиксируют входы, случайные seed, пара
 - `cloud_sequence_retrieval_smoke.py` — проверка простого временного фильтра;
 - `cloud_end_to_end_gate.py` — зафиксированный сквозной CLOUD-гейт.
 
-Blender и ступени G0–G14-A:
+Blender и ступени G0–G14-C:
 
 - `synthetic_3d_smoke.py` — G0;
 - `synthetic_3d_metric_recovery.py` — G1;
@@ -226,6 +230,7 @@ Blender и ступени G0–G14-A:
 - `synthetic_3d_calibration_uncertainty.py` — G14-A2: малые уровни и ошибка `k1`.
 - `synthetic_3d_calibration_uncertainty_repair.py` — G14-A2-R: парная многосидовая проверка stability.
 - `synthetic_3d_rolling_shutter.py` — G14-B-R: строковые позы движущейся камеры.
+- `synthetic_3d_video_quality.py` — G14-C-R: разрешение, шум, JPEG, размытие и псевдо-OSD.
 - `export_radiance_field_dataset.py` — экспорт камер и масок в Nerfstudio/Synthetic NeRF с проверкой проекций.
 
 ## Инструментальные скрипты: `scripts/`
@@ -319,6 +324,9 @@ Blender и ступени G0–G14-A:
 - [synthetic-3d-rolling-shutter-plan.md](synthetic-3d-rolling-shutter-plan.md) — замороженный план G14-B;
 - [synthetic-3d-rolling-shutter-repair-plan.md](synthetic-3d-rolling-shutter-repair-plan.md) — зарегистрированный численный repair G14-B-R;
 - [synthetic-3d-rolling-shutter-report.md](synthetic-3d-rolling-shutter-report.md) — валидный отрицательный итог G14-B-R;
+- [synthetic-3d-video-quality-plan.md](synthetic-3d-video-quality-plan.md) — замороженный план G14-C;
+- [synthetic-3d-video-quality-repair-plan.md](synthetic-3d-video-quality-repair-plan.md) — зарегистрированный repair учёта G14-C-R;
+- [synthetic-3d-video-quality-report.md](synthetic-3d-video-quality-report.md) — валидный отрицательный итог G14-C-R;
 - [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
 - [3d-reconstruction-refrigerator.md](3d-reconstruction-refrigerator.md) — решение по отложенной 3D-ветке, ресурсы и точка возобновления;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
