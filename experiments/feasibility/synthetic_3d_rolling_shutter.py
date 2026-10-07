@@ -316,6 +316,7 @@ def main() -> None:
                         "valid_warp_fraction": float(np.mean(warp.valid_mask)),
                         "maximum_warp_displacement_px": warp.maximum_displacement_px,
                         "maximum_grid_displacement_px": maximum_grid_displacement,
+                        "residual_grid_shift_px": maximum_grid_displacement,
                         "maximum_row_residual_px": maximum_row_residual,
                         "evaluation_point_count": int(selected_indices.size),
                         "evaluation": evaluation,
