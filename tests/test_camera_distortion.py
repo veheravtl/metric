@@ -140,3 +140,76 @@ def test_g14a_protocol_keeps_control_and_distortion_sweep_frozen() -> None:
     assert (
         protocol["preregistered_raw_safety"]["maximum_false_accepts"] == 0
     )
+def test_imperfect_k1_correction_leaves_measurable_residual(intrinsics) -> None:  # type: ignore[no-untyped-def]
+    """Неточный k1 не должен случайно использовать идеальные pinhole-точки."""
+
+    nominal = np.asarray([[40.0, 40.0], [920.0, 680.0], [480.0, 360.0]])
+    observed = distort_points(
+        nominal,
+        intrinsics=intrinsics,
+        distortion=BrownConradyDistortion(k1=0.05),
+    )
+    exact = undistort_points(
+        observed,
+        intrinsics=intrinsics,
+        distortion=BrownConradyDistortion(k1=0.05),
+    )
+    imperfect = undistort_points(
+        observed,
+        intrinsics=intrinsics,
+        distortion=BrownConradyDistortion(k1=0.04),
+    )
+
+    assert exact == pytest.approx(nominal, abs=0.001)
+    assert np.linalg.norm(imperfect - nominal, axis=1).max() > 1.0
+
+
+def test_g14a2_protocol_keeps_attempt_matrix_frozen() -> None:
+    """G14-A2 нельзя после результата сузить удалением неудобного уровня."""
+
+    path = Path(
+        "experiments/configs/synthetic_3d_g14a2_calibration_uncertainty.json"
+    )
+    protocol = json.loads(path.read_text(encoding="utf-8"))
+
+    assert protocol["raw_boundary_k1"] == [
+        -0.025,
+        -0.02,
+        -0.015,
+        -0.01,
+        -0.005,
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+    ]
+    assert protocol["calibration_true_k1"] == [-0.05, -0.025, 0.025, 0.05]
+    assert protocol["calibration_error_k1"] == [
+        -0.02,
+        -0.01,
+        -0.005,
+        -0.0025,
+        0.0,
+        0.0025,
+        0.005,
+        0.01,
+        0.02,
+    ]
+    scene_pose_count = len(protocol["surface_ids"]) * len(
+        protocol["repeat_camera_ids"]
+    )
+    attempts_per_scene_pose = (
+        1
+        + len(protocol["raw_boundary_k1"])
+        + len(protocol["calibration_true_k1"])
+        * len(protocol["calibration_error_k1"])
+    )
+    assert scene_pose_count * attempts_per_scene_pose == 423
+    assert protocol["maximum_point_position_error_m"] == 0.2
+    assert (
+        protocol["preregistered_imperfect_calibration_safety"][
+            "maximum_false_accepts"
+        ]
+        == 0
+    )
