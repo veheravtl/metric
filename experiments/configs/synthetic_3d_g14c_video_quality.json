@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-C independent video-quality degradation sweep",
+  "seed": 20261420,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "source_scene_output": "outputs/synthetic_3d/g14b_rolling_shutter",
+  "surface_ids": [
+    "flat_rich_seed_a",
+    "flat_rich_seed_b",
+    "flat_rich_seed_c"
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "factors": {
+    "resolution_scale": [0.75, 0.5, 0.3333333333, 0.25, 0.1666666667],
+    "noise_standard_deviation": [5.0, 10.0, 20.0, 30.0, 45.0, 60.0],
+    "jpeg_quality": [90, 70, 50, 30, 15, 5],
+    "blur_sigma_px": [0.5, 1.0, 2.0, 3.0, 4.0, 6.0],
+    "osd_occlusion_fraction": [0.01, 0.03, 0.06, 0.10, 0.15]
+  },
+  "stability_seed_offsets": [0, 1009, 2027, 4093, 8191],
+  "stability_trials_per_seed": 30,
+  "stability_subsample_fraction": 0.8,
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "expected_cases_per_scene_pose": 29,
+    "expected_physical_case_count": 261,
+    "expected_gate_decision_count": 1305,
+    "maximum_identity_pixel_difference": 0,
+    "minimum_nominal_alignment_constructed": 9,
+    "maximum_nominal_metric_failures": 0,
+    "maximum_nominal_over_limit": 0
+  },
+  "preregistered_safety": {
+    "maximum_any_seed_false_accept_cases_per_factor": 0,
+    "maximum_all_seed_false_accept_cases_per_factor": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html",
+    "https://docs.opencv.org/4.x/dc/dd3/tutorial_gausian_median_blur_bilateral_filter.html",
+    "https://docs.opencv.org/4.10.0/d8/d6a/group__imgcodecs__flags.html",
+    "https://docs.opencv.org/4.11.0/d6/d6e/group__imgproc__draw.html"
+  ]
+}
