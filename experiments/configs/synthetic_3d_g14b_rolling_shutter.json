@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-B row-dependent camera pose during rolling-shutter readout",
+  "seed": 20261410,
+  "source_protocol": "experiments/configs/synthetic_3d_g12_interaction_scenes.json",
+  "scene_output": "outputs/synthetic_3d/g14b_rolling_shutter/scenes",
+  "surfaces": [
+    {
+      "id": "flat_rich_seed_a",
+      "scene_seed": 20261411,
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 0}
+    },
+    {
+      "id": "flat_rich_seed_b",
+      "scene_seed": 20261412,
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 0}
+    },
+    {
+      "id": "flat_rich_seed_c",
+      "scene_seed": 20261413,
+      "terrain": {"kind": "flat"},
+      "clutter": {"count": 0}
+    }
+  ],
+  "repeat_camera_ids": [
+    "repeat_same",
+    "repeat_lateral_0_8h",
+    "repeat_tilt_40deg"
+  ],
+  "safe_mask_erosion_px": 9,
+  "point_group_count": 5,
+  "map_anchor_grid": {
+    "columns": 4,
+    "rows": 3,
+    "inset_fraction": 0.12
+  },
+  "scan_direction": "top_to_bottom",
+  "motion_cases": [
+    {
+      "id": "nominal_global_shutter",
+      "mode": "nominal",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_minus_2_00m",
+      "mode": "translation_x",
+      "total_translation_local_m": [-2.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_minus_1_00m",
+      "mode": "translation_x",
+      "total_translation_local_m": [-1.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_minus_0_50m",
+      "mode": "translation_x",
+      "total_translation_local_m": [-0.5, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_minus_0_25m",
+      "mode": "translation_x",
+      "total_translation_local_m": [-0.25, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_minus_0_10m",
+      "mode": "translation_x",
+      "total_translation_local_m": [-0.1, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_plus_0_10m",
+      "mode": "translation_x",
+      "total_translation_local_m": [0.1, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_plus_0_25m",
+      "mode": "translation_x",
+      "total_translation_local_m": [0.25, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_plus_0_50m",
+      "mode": "translation_x",
+      "total_translation_local_m": [0.5, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_plus_1_00m",
+      "mode": "translation_x",
+      "total_translation_local_m": [1.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "translate_x_plus_2_00m",
+      "mode": "translation_x",
+      "total_translation_local_m": [2.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.0]
+    },
+    {
+      "id": "rotate_z_minus_2_00deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, -2.0]
+    },
+    {
+      "id": "rotate_z_minus_1_00deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, -1.0]
+    },
+    {
+      "id": "rotate_z_minus_0_50deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, -0.5]
+    },
+    {
+      "id": "rotate_z_minus_0_25deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, -0.25]
+    },
+    {
+      "id": "rotate_z_minus_0_10deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, -0.1]
+    },
+    {
+      "id": "rotate_z_plus_0_10deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.1]
+    },
+    {
+      "id": "rotate_z_plus_0_25deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.25]
+    },
+    {
+      "id": "rotate_z_plus_0_50deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 0.5]
+    },
+    {
+      "id": "rotate_z_plus_1_00deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 1.0]
+    },
+    {
+      "id": "rotate_z_plus_2_00deg",
+      "mode": "rotation_z",
+      "total_translation_local_m": [0.0, 0.0, 0.0],
+      "total_rotation_local_deg": [0.0, 0.0, 2.0]
+    }
+  ],
+  "stability_seed_offsets": [0, 1009, 2027, 4093, 8191],
+  "stability_trials_per_seed": 30,
+  "stability_subsample_fraction": 0.8,
+  "maximum_point_position_error_m": 0.2,
+  "preregistered_validity": {
+    "expected_physical_case_count": 189,
+    "expected_gate_decision_count": 945,
+    "maximum_identity_warp_error_px": 0.000001,
+    "maximum_row_equation_residual_px": 0.0001,
+    "minimum_nominal_alignment_constructed": 9,
+    "maximum_nominal_metric_failures": 0,
+    "maximum_nominal_over_limit": 0
+  },
+  "preregistered_safety": {
+    "maximum_any_seed_translation_false_accept_cases": 0,
+    "maximum_all_seed_translation_false_accept_cases": 0,
+    "maximum_any_seed_rotation_false_accept_cases": 0,
+    "maximum_all_seed_rotation_false_accept_cases": 0
+  },
+  "primary_sources": [
+    "https://arxiv.org/abs/cs/0503076",
+    "https://docs.blender.org/manual/en/4.5/render/cycles/render_settings/motion_blur.html"
+  ]
+}
