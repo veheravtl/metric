@@ -2,9 +2,10 @@
 
 Этот документ отвечает на практический вопрос: где искать постановку задачи,
 рабочий код, сценарии экспериментов, данные и результаты. Актуально на
-2026-10-07 после G14-C-R: однофакторный видеосрез валиден, но один шумный
-кадр с ошибкой 0,2067 м приняли два из пяти seed. Остальные четыре фактора
-дали ноль ложных принятий.
+2026-10-07 после G14-D: C2 и D дали ноль ложных итоговых принятий на 369
+случаях, но правило 5/5 полностью отказалось от корректных кадров при наклоне
+40°. Формальные критерии пройдены; правило ещё не является рабочим
+контрактом.
 
 Термины проекта расшифрованы в [тезаурусе](glossary.md). В частности, `Teach`
 означает первичную съёмку с известной разметкой, а `Repeat` — повторный кадр,
@@ -12,35 +13,39 @@
 
 ## С чего начать
 
-Для знакомства с проектом достаточно пройти четырнадцать документов в таком порядке:
+Для знакомства с проектом достаточно пройти шестнадцать документов в таком порядке:
 
 1. [README](../README.md) — задача, текущие результаты и быстрый запуск.
 2. [Дорожная карта](project-roadmap.md) — принятые решения, ограничения и
    ближайшие гейты.
-3. [Отчёт G14-C-R](synthetic-3d-video-quality-report.md) — разрешение, шум,
+3. [Отчёт G14-C2](synthetic-3d-noise-consensus-report.md) — узкая шумовая
+   граница и проверка единогласного правила 5/5.
+4. [Отчёт G14-D](synthetic-3d-video-mixtures-report.md) — смешанные артефакты,
+   безопасный отказ и потеря доступности на наклонной позе.
+5. [Отчёт G14-C-R](synthetic-3d-video-quality-report.md) — разрешение, шум,
    JPEG, размытие, псевдо-OSD и пограничное ложное принятие шумного кадра.
-4. [Отчёт G14-A2-R](synthetic-3d-calibration-uncertainty-repair-report.md) —
+6. [Отчёт G14-A2-R](synthetic-3d-calibration-uncertainty-repair-report.md) —
    валидная парная проверка калибровочной ошибки и отрицательный гейт безопасности.
-5. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
+7. [Отчёт G14-A](synthetic-3d-lens-distortion-report.md) — ложные принятия при
    пропущенной дисторсии и эффект известной калибровки.
-6. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
+8. [Отчёт G13-R](synthetic-3d-texture-ambiguity-report.md) — наблюдаемый отказ на
    неоднозначной Teach-текстуре и его цена доступностью.
-7. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
+9. [Отчёт G13](synthetic-3d-texture-class-report.md) — безопасный отказ на
    гладкой земле и опасное ложное принятие на повторяющихся рядах.
-8. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
-   пограничной позы, качества кадра и ошибок Teach-маски на новых seed.
-9. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
-   базиса, высоты и наклона повторной камеры.
-10. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
-   объектам над плоской землёй.
-11. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
-   продуктовая постановка и точность вектора «цель → попадание».
-12. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
-   метрической модели на гладком рельефе и отрицательный итог G9.
-13. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
-   устойчивости Teach-разметки и отрицательный итог G8.
-14. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
-   общая логика синтетического стенда.
+10. [Отчёт G12](synthetic-3d-pose-interactions-report.md) — взаимодействие
+    пограничной позы, качества кадра и ошибок Teach-маски на новых seed.
+11. [Отчёт G11](synthetic-3d-pose-sweep-report.md) — границы бокового
+    базиса, высоты и наклона повторной камеры.
+12. [Отчёт G10](synthetic-3d-clutter-report.md) — устойчивость к статичным
+    объектам над плоской землёй.
+13. [Отчёт G9-R](synthetic-3d-relative-displacement-report.md) — актуальная
+    продуктовая постановка и точность вектора «цель → попадание».
+14. [Отчёт G9](synthetic-3d-terrain-pose-report.md) — граница плоской
+    метрической модели на гладком рельефе и отрицательный итог G9.
+15. [Отчёт G8](synthetic-3d-annotation-robustness-report.md) — граница
+    устойчивости Teach-разметки и отрицательный итог G8.
+16. [План 3D-гейта](synthetic-3d-gate-plan.md) — исходная история G0–G13 и
+    общая логика синтетического стенда.
 
 Если нужно запустить проект, а не разбираться в истории экспериментов, см.
 раздел [«Частые команды»](#частые-команды) ниже.
@@ -189,6 +194,8 @@ JSON-файлы фиксируют входы, случайные seed, пара
 | `synthetic_3d_g14a2r_paired_stability.json` | G14-A2-R: пять парных seed и раздельные критерии валидности и безопасности. |
 | `synthetic_3d_g14b_rolling_shutter.json` | G14-B: строковые позы, движения и frozen-критерии repair. |
 | `synthetic_3d_g14c_video_quality.json` | G14-C: однофакторные уровни качества видеотракта и парная stability-проверка. |
+| `synthetic_3d_g14c2_noise_consensus.json` | G14-C2: шум 20–40, три реализации и правило согласия 5/5. |
+| `synthetic_3d_g14d_video_mixtures.json` | G14-D: четыре заранее зафиксированные смеси и общие критерии без разделения по позам. |
 | `nerf_3dgs_prelesson_export.json` | Подготовительный экспорт четырёх камер, train/test split и строгие пороги проекции. |
 
 Конфигурации — часть протокола. Менять их после просмотра итоговой выборки
@@ -231,6 +238,7 @@ Blender и ступени G0–G14-C:
 - `synthetic_3d_calibration_uncertainty_repair.py` — G14-A2-R: парная многосидовая проверка stability.
 - `synthetic_3d_rolling_shutter.py` — G14-B-R: строковые позы движущейся камеры.
 - `synthetic_3d_video_quality.py` — G14-C-R: разрешение, шум, JPEG, размытие и псевдо-OSD.
+- `synthetic_3d_video_quality_followup.py` — общий запускаемый сценарий G14-C2 и G14-D с агрегированным gate.
 - `export_radiance_field_dataset.py` — экспорт камер и масок в Nerfstudio/Synthetic NeRF с проверкой проекций.
 
 ## Инструментальные скрипты: `scripts/`
@@ -327,6 +335,8 @@ Blender и ступени G0–G14-C:
 - [synthetic-3d-video-quality-plan.md](synthetic-3d-video-quality-plan.md) — замороженный план G14-C;
 - [synthetic-3d-video-quality-repair-plan.md](synthetic-3d-video-quality-repair-plan.md) — зарегистрированный repair учёта G14-C-R;
 - [synthetic-3d-video-quality-report.md](synthetic-3d-video-quality-report.md) — валидный отрицательный итог G14-C-R;
+- [synthetic-3d-noise-consensus-plan.md](synthetic-3d-noise-consensus-plan.md) и [отчёт](synthetic-3d-noise-consensus-report.md) — G14-C2;
+- [synthetic-3d-video-mixtures-plan.md](synthetic-3d-video-mixtures-plan.md) и [отчёт](synthetic-3d-video-mixtures-report.md) — G14-D;
 - [nerf-3dgs-prelesson.md](nerf-3dgs-prelesson.md) — проверенные камеры, типичные ошибки и вопросы к занятию;
 - [3d-reconstruction-refrigerator.md](3d-reconstruction-refrigerator.md) — решение по отложенной 3D-ветке, ресурсы и точка возобновления;
 - [synthetic-3d-pose-sweep-report.md](synthetic-3d-pose-sweep-report.md) — границы позы G11;
