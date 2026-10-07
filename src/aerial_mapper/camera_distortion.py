@@ -179,7 +179,18 @@ def undistort_points(
         y -= (-jacobian_yx * residual_x + jacobian_xx * residual_y) / determinant
     corrected_x = x * intrinsics.focal_x_px + intrinsics.principal_x_px
     corrected_y = y * intrinsics.focal_y_px + intrinsics.principal_y_px
-    return np.column_stack((corrected_x, corrected_y))
+    corrected = np.column_stack((corrected_x, corrected_y))
+    # Метод не имеет права молча вернуть правдоподобную точку, если заданная
+    # модель оказалась плохо обратимой. Проверяем результат независимым прямым
+    # преобразованием в пикселях, а не только внутренним условием остановки.
+    redistorted = distort_points(
+        corrected,
+        intrinsics=intrinsics,
+        distortion=distortion,
+    )
+    if np.max(np.linalg.norm(redistorted - points, axis=1), initial=0.0) > 1e-6:
+        raise ValueError("Обращение модели дисторсии не сошлось")
+    return corrected
 
 
 def distort_image(
