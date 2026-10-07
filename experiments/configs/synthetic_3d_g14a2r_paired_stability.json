@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiment": "G14-A2-R paired stability repair",
+  "seed": 20261403,
+  "source_experiment_config": "experiments/configs/synthetic_3d_g14a2_calibration_uncertainty.json",
+  "stability_seed_offsets": [0, 1009, 2027, 4093, 8191],
+  "stability_trials_per_seed": 30,
+  "stability_subsample_fraction": 0.8,
+  "preregistered_validity": {
+    "maximum_exact_point_round_trip_error_px": 0.001,
+    "minimum_nominal_alignment_constructed": 9,
+    "maximum_nominal_metric_failures": 0,
+    "maximum_nominal_over_limit": 0,
+    "minimum_exact_calibration_alignment_constructed": 36,
+    "maximum_exact_calibration_metric_failures": 0,
+    "maximum_exact_calibration_over_limit": 0
+  },
+  "preregistered_safety": {
+    "maximum_any_seed_raw_false_accept_cases": 0,
+    "maximum_all_seed_raw_false_accept_cases": 0,
+    "maximum_any_seed_imperfect_false_accept_cases": 0,
+    "maximum_all_seed_imperfect_false_accept_cases": 0
+  },
+  "primary_sources": [
+    "https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html"
+  ]
+}
