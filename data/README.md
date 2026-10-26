@@ -46,3 +46,31 @@ demo-образца [OrthoLoC](https://github.com/deepscenario/OrthoLoC). Они
 Они сохраняются в `queries/ortholoc/` и не коммитятся. Эксперимент и описание
 визуального отчёта находятся в
 [`ortholoc-real-data-spike.md`](../docs/ortholoc-real-data-spike.md).
+
+## MARS-LVIG HKairport
+
+Для внешней проверки переноса Teach/Repeat используются три надирных полёта
+MARS-LVIG по одному маршруту на скоростях 3, 6 и 9 м/с. ROS bag и извлечённые
+кадры имеют лицензию CC BY-NC-SA 4.0, хранятся только локально в
+`queries/mars_lvig/` и не коммитятся.
+
+Происхождение, точные размеры файлов, роли development/held-out и параметры
+камеры записаны в `manifests/mars_lvig_hkairport.json`. Протокол эксперимента
+зафиксирован в
+[`mars-lvig-gate-plan.md`](../docs/mars-lvig-gate-plan.md).
+
+Официальный Google Drive может временно возвращать страницу `Quota exceeded`
+вместо бинарного файла. Поэтому манифест отдельно фиксирует стороннюю
+перепаковку тех же последовательностей в ROS2 MCAP из репозитория
+`DapengFeng/MCAP` на Hugging Face. Источник выбирается явно:
+
+    uv run python scripts/download_mars_lvig.py \
+        --source huggingface_mcap \
+        --sequence HKairport01 --sequence HKairport02
+    uv run python scripts/export_mars_lvig.py \
+        --source huggingface_mcap \
+        --sequence HKairport01 --sequence HKairport02
+
+Зеркало не считается новым правообладателем исходной съёмки. Несмотря на его
+метку `CC BY-NC 4.0`, в проекте применяется более строгое официальное условие
+`CC BY-NC-SA 4.0`. MCAP, ROS bag и извлечённые кадры не коммитятся.

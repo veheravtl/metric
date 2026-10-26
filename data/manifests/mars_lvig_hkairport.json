@@ -1,0 +1,117 @@
+{
+  "id": "mars_lvig_hkairport",
+  "purpose": "Внешняя проверка переноса RGB Teach/Repeat-конвейера на надирные полёты другой камеры и высоты",
+  "source": {
+    "title": "MARS-LVIG Dataset: A multi-sensor aerial robots SLAM dataset for LiDAR-visual-inertial-GNSS fusion",
+    "dataset_page": "https://mars.hku.hk/dataset.html",
+    "paper": "https://lawrence-cn.github.io/files/IJRR-LVIG.pdf",
+    "download_folder": "https://drive.google.com/drive/folders/1aG21le4QZl9LhSLE1O0vuVDQ8YgAwdas?usp=sharing",
+    "authors": "Haotian Li, Yuying Zou, Nan Chen, Jiarong Lin, Xiyuan Liu, Wei Xu, Chunran Zheng, Rundong Li, Dongjiao He, Fanze Kong, Yixi Cai, Zheng Liu, Shunbo Zhou, Kaiwen Xue and Fu Zhang"
+  },
+  "license_audit": {
+    "status": "noncommercial_sharealike_dataset",
+    "dataset_page_label": "CC BY-NC-SA 4.0; academic use only",
+    "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "decision_for_this_experiment": "Использовать локально для учебного некоммерческого исследования; не коммитить и не перераспространять ROS bag или извлечённые кадры."
+  },
+  "storage_directory": "data/queries/mars_lvig",
+  "projected_crs": "EPSG:32650",
+  "topics": {
+    "camera": "/left_camera/image/compressed",
+    "rtk_position": "/dji_osdk_ros/rtk_position"
+  },
+  "camera": {
+    "model": "pinhole",
+    "width_pixels": 2448,
+    "height_pixels": 2048,
+    "fx_pixels": 1444.431662789634,
+    "fy_pixels": 1444.343536688358,
+    "cx_pixels": 1177.801079401826,
+    "cy_pixels": 1043.601026568268,
+    "distortion": [-0.05729528706141188, 0.1210407244166642, 0.001274128378760289, 0.0004389741530109464],
+    "calibration_source": "https://github.com/hku-mars/FAST-LIVO2/blob/main/config/camera_MARS_LVIG.yaml"
+  },
+  "sequences": [
+    {
+      "name": "HKairport01",
+      "role": "teach",
+      "speed_meters_per_second": 3,
+      "route_start_offset_seconds": 75,
+      "filename": "HKairport01.bag",
+      "google_drive_file_id": "1dj_7Htdb1rtRsiQ-HqcndrBxV4GOr_2H",
+      "url": "https://drive.usercontent.google.com/download?id=1dj_7Htdb1rtRsiQ-HqcndrBxV4GOr_2H&export=download&confirm=t",
+      "size_bytes": 19900272121,
+      "sha256": null,
+      "mirrors": {
+        "huggingface_mcap": {
+          "provider": "DapengFeng/MCAP",
+          "repository": "https://huggingface.co/datasets/DapengFeng/MCAP",
+          "repository_revision": "579b47b2fef6b478dbd59947826ed27761bcdb60",
+          "format": "rosbag2_mcap",
+          "filename": "HKairport01_0.mcap",
+          "url": "https://huggingface.co/datasets/DapengFeng/MCAP/resolve/579b47b2fef6b478dbd59947826ed27761bcdb60/mars_lvig/HKairport01/HKairport01_0.mcap",
+          "size_bytes": 20439576672,
+          "sha256": "cfcdcedcb3a06efe5a3d1041cd7e9c2bf88cffa7376ec3a878aff754fa34a4cc",
+          "duration_nanoseconds": 779845718197,
+          "camera_message_count": 7799,
+          "rtk_message_count": 3900,
+          "provenance_note": "Сторонняя перепаковка официальной последовательности из ROS1 bag в ROS2 MCAP; для лицензии применяется более строгое условие официальной страницы."
+        }
+      }
+    },
+    {
+      "name": "HKairport02",
+      "role": "development_repeat",
+      "speed_meters_per_second": 6,
+      "route_start_offset_seconds": 60,
+      "filename": "HKairport02.bag",
+      "google_drive_file_id": "1hxSdFyULhS2MlVG5Aba9YWFc9DambsuA",
+      "url": "https://drive.usercontent.google.com/download?id=1hxSdFyULhS2MlVG5Aba9YWFc9DambsuA&export=download&confirm=t",
+      "size_bytes": 11359145914,
+      "sha256": null,
+      "mirrors": {
+        "huggingface_mcap": {
+          "provider": "DapengFeng/MCAP",
+          "repository": "https://huggingface.co/datasets/DapengFeng/MCAP",
+          "repository_revision": "579b47b2fef6b478dbd59947826ed27761bcdb60",
+          "format": "rosbag2_mcap",
+          "filename": "HKairport02_0.mcap",
+          "url": "https://huggingface.co/datasets/DapengFeng/MCAP/resolve/579b47b2fef6b478dbd59947826ed27761bcdb60/mars_lvig/HKairport02/HKairport02_0.mcap",
+          "size_bytes": 11674343738,
+          "sha256": "b6795a08c2c39786ba2b405fa64dcdfd1f26fccc822abcf5f7a25f008b3dbaf0",
+          "duration_nanoseconds": 455565065547,
+          "camera_message_count": 4556,
+          "rtk_message_count": 2278,
+          "provenance_note": "Сторонняя перепаковка официальной последовательности из ROS1 bag в ROS2 MCAP; для лицензии применяется более строгое условие официальной страницы."
+        }
+      }
+    },
+    {
+      "name": "HKairport03",
+      "role": "held_out_repeat",
+      "speed_meters_per_second": 9,
+      "route_start_offset_seconds": 62,
+      "filename": "HKairport03.bag",
+      "google_drive_file_id": "1V2Z8eUuVOanpdZiga7LcskgzfJD3gEqn",
+      "url": "https://drive.usercontent.google.com/download?id=1V2Z8eUuVOanpdZiga7LcskgzfJD3gEqn&export=download&confirm=t",
+      "size_bytes": 9080929458,
+      "sha256": null,
+      "mirrors": {
+        "huggingface_mcap": {
+          "provider": "DapengFeng/MCAP",
+          "repository": "https://huggingface.co/datasets/DapengFeng/MCAP",
+          "repository_revision": "579b47b2fef6b478dbd59947826ed27761bcdb60",
+          "format": "rosbag2_mcap",
+          "filename": "HKairport03_0.mcap",
+          "url": "https://huggingface.co/datasets/DapengFeng/MCAP/resolve/579b47b2fef6b478dbd59947826ed27761bcdb60/mars_lvig/HKairport03/HKairport03_0.mcap",
+          "size_bytes": 9333899373,
+          "sha256": "30861ada6e493692933bfd31b1650351023ab3fad2a9c6e20b77d760fbe82db6",
+          "duration_nanoseconds": 365688326619,
+          "camera_message_count": 3657,
+          "rtk_message_count": 1828,
+          "provenance_note": "Сторонняя перепаковка официальной последовательности из ROS1 bag в ROS2 MCAP; для лицензии применяется более строгое условие официальной страницы."
+        }
+      }
+    }
+  ]
+}
