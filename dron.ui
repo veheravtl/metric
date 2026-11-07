@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1362</width>
+    <height>871</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="centralLayout">
+    <item>
+     <widget class="QSplitter" name="viewSplitter">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
+      </property>
+      <widget class="QGraphicsView" name="videoView">
+       <property name="minimumSize">
+        <size>
+         <width>320</width>
+         <height>240</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="QGraphicsView" name="mapView">
+       <property name="minimumSize">
+        <size>
+         <width>320</width>
+         <height>240</height>
+        </size>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="playbackLayout">
+      <item>
+       <widget class="QPushButton" name="pbPlay">
+        <property name="text">
+         <string>Play</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pbStop">
+        <property name="text">
+         <string>Stop</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pbBack">
+        <property name="text">
+         <string>&lt;&lt;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pbForward">
+        <property name="text">
+         <string>&gt;&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pbExcludeFrame">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Exclude + &gt;&gt;</string>
+        </property>
+        <property name="toolTip">
+         <string>Exclude current frame from measurements and advance</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSlider" name="frameSlider">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>240</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximum">
+         <number>0</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="tracking">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1362</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuVideo">
+    <property name="title">
+     <string>Video</string>
+    </property>
+    <addaction name="actionLoad_video"/>
+    <addaction name="actionLoad_flight"/>
+    <addaction name="actionStream_from_Camera"/>
+   </widget>
+   <widget class="QMenu" name="menuMap">
+    <property name="title">
+     <string>Map</string>
+    </property>
+    <addaction name="actionLoad_map"/>
+   </widget>
+   <widget class="QMenu" name="menuAlignment">
+    <property name="title">
+     <string>Alignment</string>
+    </property>
+    <addaction name="actionAuto_align"/>
+    <addaction name="actionExport_alignment_report"/>
+    <addaction name="separator"/>
+    <addaction name="actionSet_points"/>
+    <addaction name="actionUndo_point"/>
+    <addaction name="actionRemove_selected"/>
+    <addaction name="actionClear_points"/>
+    <addaction name="separator"/>
+    <addaction name="actionCompute_alignment"/>
+    <addaction name="actionTrack_points"/>
+    <addaction name="actionShow_overlay"/>
+    <addaction name="actionExclude_frame"/>
+    <addaction name="actionExclude_frame_range"/>
+   </widget>
+   <addaction name="menuVideo"/>
+   <addaction name="menuMap"/>
+   <addaction name="menuAlignment"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad_video">
+   <property name="text">
+    <string>Load video</string>
+   </property>
+  </action>
+  <action name="actionLoad_flight">
+   <property name="text">
+    <string>Load flight folder</string>
+   </property>
+  </action>
+  <action name="actionStream_from_Camera">
+   <property name="text">
+    <string>Stream from Camera</string>
+   </property>
+  </action>
+  <action name="actionLoad_map">
+   <property name="text">
+    <string>Load map</string>
+   </property>
+  </action>
+  <action name="actionAuto_align">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Auto align current frame</string>
+   </property>
+   <property name="toolTip">
+    <string>Experimental SIFT + MAGSAC alignment</string>
+   </property>
+  </action>
+  <action name="actionExport_alignment_report">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export manual + auto report...</string>
+   </property>
+   <property name="toolTip">
+    <string>Run auto alignment if needed and save a diagnostic ZIP</string>
+   </property>
+  </action>
+  <action name="actionSet_points">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Set corresponding points</string>
+   </property>
+  </action>
+  <action name="actionUndo_point">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Undo last point</string>
+   </property>
+  </action>
+  <action name="actionRemove_selected">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Remove selected beacon</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+  </action>
+  <action name="actionClear_points">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Clear points</string>
+   </property>
+  </action>
+  <action name="actionCompute_alignment">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Compute / confirm alignment</string>
+   </property>
+   <property name="toolTip">
+    <string>Confirm the current frame as a new operator keyframe</string>
+   </property>
+  </action>
+  <action name="actionTrack_points">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Track beacons across frames</string>
+   </property>
+   <property name="toolTip">
+    <string>Track confirmed manual points on consecutive video frames</string>
+   </property>
+  </action>
+
+  <action name="actionExclude_frame">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Exclude current frame and advance</string>
+   </property>
+   <property name="toolTip">
+    <string>Mark the current frame unusable for measurements and open the next frame</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+X</string>
+   </property>
+  </action>
+  <action name="actionExclude_frame_range">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Exclude frame range...</string>
+   </property>
+   <property name="toolTip">
+    <string>Exclude the current frame through a chosen last frame index</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+X</string>
+   </property>
+  </action>
+
+  <action name="actionShow_overlay">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show overlay</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

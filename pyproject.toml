@@ -14,12 +14,17 @@ dependencies = [
     "matplotlib>=3.9,<4",
     "numpy>=2.0,<3",
     "opencv-python>=4.10,<6",
+    "PySide6==6.10.1",
     "pyproj>=3.7,<4",
     "rasterio>=1.4,<2",
     "rosbags>=0.11.7,<0.12",
     "shapely>=2.1,<3",
     "torch>=2.14.1",
 ]
+
+[project.scripts]
+aerial-mapper-build-ui = "aerial_mapper.gui.build_ui:main"
+aerial-mapper-gui = "aerial_mapper.gui.app:main"
 
 [dependency-groups]
 dev = [
@@ -38,10 +43,12 @@ explicit = true
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+exclude = ["src/aerial_mapper/gui/generated"]
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "UP"]
