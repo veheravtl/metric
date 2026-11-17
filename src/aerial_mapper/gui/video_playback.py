@@ -9,6 +9,7 @@ OpenCV, а таймер Qt только задаёт моменты перехо
 from __future__ import annotations
 
 import math
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
@@ -21,6 +22,9 @@ from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
 from .flight_sequence import FrameTelemetry, MarsLvigFlight
 
 CaptureFactory = Callable[[str], cv2.VideoCapture]
+MAXIMUM_DISPLAY_HOLD_FRAMES = 50
+MAXIMUM_DISPLAY_HOLD_BYTES = 64 * 1024 * 1024
+DISPLAY_HOLD_JPEG_QUALITY = 95
 
 
 class VideoPlaybackController(QObject):
@@ -54,7 +58,12 @@ class VideoPlaybackController(QObject):
         self._fps = 0.0
         self._current_frame_index: int | None = None
         self._current_frame_bgr: np.ndarray | None = None
+        self._displayed_frame_index: int | None = None
+        self._display_frozen = False
 
+        self._held_encoded_frames: deque[tuple[int, bytes]] = deque()
+        self._held_encoded_bytes = 0
+        self._hold_buffer_error: str | None = None
         self._scene = QGraphicsScene(self)
         self._pixmap_item = QGraphicsPixmapItem()
         self._pixmap_item.setTransformationMode(
@@ -101,6 +110,18 @@ class VideoPlaybackController(QObject):
         """Индекс отображаемого кадра, начиная с нуля."""
 
         return self._current_frame_index
+
+    @property
+    def displayed_frame_index(self) -> int | None:
+        """Индекс кадра, который оператор фактически видит в сцене."""
+
+        return self._displayed_frame_index
+
+    @property
+    def is_display_frozen(self) -> bool:
+        """Удерживается ли старый кадр при продолжающемся чтении потока."""
+
+        return self._display_frozen
 
     @property
     def frame_count(self) -> int:
@@ -268,6 +289,75 @@ class VideoPlaybackController(QObject):
             return True
         return self._show_frame(frame_index)
 
+    def freeze_display(self) -> bool:
+        """Удержать показанный кадр, не останавливая таймер и декодирование."""
+
+        if not self.is_loaded:
+            return False
+        self._clear_held_frames()
+        self._display_frozen = True
+        return True
+
+    def resume_display(self) -> None:
+        """Показать последний реально прочитанный кадр одним скачком."""
+
+        if self._display_frozen:
+            self._display_frozen = False
+            if (
+                self._current_frame_bgr is not None
+                and self._current_frame_index is not None
+            ):
+                self._render_frame(
+                    self._current_frame_bgr,
+                    frame_index=self._current_frame_index,
+                )
+        self._clear_held_frames()
+
+    def held_frames_after(
+        self,
+        frame_index: int,
+    ) -> tuple[tuple[int, np.ndarray], ...]:
+        """Декодировать непрерывный буфер между стоп-кадром и живым краем.
+
+        Буфер ограничен по числу кадров и памяти. Если оператор удерживал
+        изображение слишком долго и начало уже вытеснено, метод отказывает
+        явно: перескок через неизвестные кадры разрушил бы оптический поток.
+        """
+
+        if not self._display_frozen:
+            raise RuntimeError("Отображение уже не удерживается")
+        if self._hold_buffer_error is not None:
+            raise RuntimeError(self._hold_buffer_error)
+
+        expected_index = frame_index + 1
+        decoded: list[tuple[int, np.ndarray]] = []
+        for buffered_index, encoded in self._held_encoded_frames:
+            if buffered_index < expected_index:
+                continue
+            if buffered_index != expected_index:
+                raise RuntimeError(
+                    "Буфер временного выбора переполнен: "
+                    f"ожидался кадр {expected_index + 1}, "
+                    f"доступен {buffered_index + 1}"
+                )
+            frame = cv2.imdecode(
+                np.frombuffer(encoded, dtype=np.uint8),
+                cv2.IMREAD_COLOR,
+            )
+            if frame is None or frame.size == 0:
+                raise RuntimeError(
+                    f"Не удалось декодировать кадр {buffered_index + 1} буфера"
+                )
+            decoded.append((buffered_index, frame))
+            expected_index += 1
+
+        live_index = self._current_frame_index
+        if live_index is not None and expected_index != live_index + 1:
+            raise RuntimeError(
+                "Буфер временного выбора не содержит все кадры до живого края"
+            )
+        return tuple(decoded)
+
     def fit_to_view(self) -> None:
         """Вписать кадр в область просмотра, сохранив пропорции."""
 
@@ -290,6 +380,9 @@ class VideoPlaybackController(QObject):
         self._fps = 0.0
         self._current_frame_index = None
         self._current_frame_bgr = None
+        self._displayed_frame_index = None
+        self._display_frozen = False
+        self._clear_held_frames()
         self._pixmap_item.setPixmap(QPixmap())
         self._scene.setSceneRect(0.0, 0.0, 0.0, 0.0)
 
@@ -336,6 +429,61 @@ class VideoPlaybackController(QObject):
             if not ok or frame_bgr is None or frame_bgr.size == 0:
                 return False
 
+        self._current_frame_bgr = frame_bgr
+        self._current_frame_index = frame_index
+        if self._display_frozen:
+            self._buffer_held_frame(frame_bgr, frame_index=frame_index)
+        else:
+            self._render_frame(frame_bgr, frame_index=frame_index)
+        self.frame_changed.emit(frame_index, self._frame_count)
+        return True
+
+    def _buffer_held_frame(
+        self,
+        frame_bgr: np.ndarray,
+        *,
+        frame_index: int,
+    ) -> None:
+        """Сжать один прошедший кадр в краткоживущий буфер выбора."""
+
+        success, encoded = cv2.imencode(
+            ".jpg",
+            frame_bgr,
+            [cv2.IMWRITE_JPEG_QUALITY, DISPLAY_HOLD_JPEG_QUALITY],
+        )
+        if not success:
+            self._hold_buffer_error = (
+                f"Не удалось сжать кадр {frame_index + 1} временного буфера"
+            )
+            return
+        payload = encoded.tobytes()
+        self._held_encoded_frames.append((frame_index, payload))
+        self._held_encoded_bytes += len(payload)
+        while (
+            len(self._held_encoded_frames) > MAXIMUM_DISPLAY_HOLD_FRAMES
+            or self._held_encoded_bytes > MAXIMUM_DISPLAY_HOLD_BYTES
+        ):
+            _, removed = self._held_encoded_frames.popleft()
+            self._held_encoded_bytes -= len(removed)
+            self._hold_buffer_error = (
+                "Временный выбор длился слишком долго: начало буфера вытеснено"
+            )
+
+    def _clear_held_frames(self) -> None:
+        """Освободить краткоживущие кадры и сбросить ошибку переполнения."""
+
+        self._held_encoded_frames.clear()
+        self._held_encoded_bytes = 0
+        self._hold_buffer_error = None
+
+    def _render_frame(
+        self,
+        frame_bgr: np.ndarray,
+        *,
+        frame_index: int,
+    ) -> None:
+        """Обновить графическую сцену, не меняя состояние источника."""
+
         rgb_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         height, width, channels = rgb_frame.shape
         bytes_per_line = width * channels
@@ -350,8 +498,5 @@ class VideoPlaybackController(QObject):
         pixmap = QPixmap.fromImage(image)
         self._pixmap_item.setPixmap(pixmap)
         self._scene.setSceneRect(self._pixmap_item.boundingRect())
-        self._current_frame_bgr = frame_bgr
-        self._current_frame_index = frame_index
+        self._displayed_frame_index = frame_index
         self.fit_to_view()
-        self.frame_changed.emit(frame_index, self._frame_count)
-        return True

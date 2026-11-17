@@ -19,8 +19,12 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QInputDialog,
+    QLabel,
     QMainWindow,
     QMessageBox,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from aerial_mapper.alignment_report import export_alignment_comparison_package
@@ -47,6 +51,7 @@ from .correspondence_editor import CorrespondenceEditor
 from .generated.ui_dron import Ui_MainWindow
 from .map_image import MapImageController
 from .operator_dock import OperatorDock
+from .repeat_measurement import RepeatMeasurementWidget
 from .video_playback import VideoPlaybackController
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -61,6 +66,13 @@ RECENT_SOURCE_TYPE_KEY = "recent/source_type"
 RECENT_MAP_PATH_KEY = "recent/map_path"
 WINDOW_STATE_KEY = "operator/window_state"
 DOCK_GEOMETRY_KEY = "operator/dock_geometry"
+
+# Полная сериализация крупного JSON выполняется в главном потоке Qt и поэтому
+# блокирует весь интерфейс. Небольшие учебные проекты по-прежнему сохраняются
+# автоматически, а для больших оператор явно выбирает момент тяжёлой записи
+# через Ctrl+S. Несохранённое состояние остаётся видимым в панели, а рабочий
+# запуск приложения дополнительно спрашивает о сохранении при закрытии.
+MAX_AUTOSAVE_PROJECT_BYTES = 32 * 1024 * 1024
 
 
 class MainWindow(QMainWindow):
@@ -90,6 +102,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self._create_workspace_tabs()
         self._live_debug = live_debug
         self._live_debug_closed = False
         self._last_live_debug_capture_monotonic = 0.0
@@ -178,7 +191,9 @@ class MainWindow(QMainWindow):
         self._incident_shortcut = QShortcut(QKeySequence("F12"), self)
         self._incident_shortcut.activated.connect(self._mark_live_debug_incident)
         self._cancel_point_shortcut = QShortcut(QKeySequence("Esc"), self)
-        self._cancel_point_shortcut.activated.connect(self.alignment.cancel_pending_point)
+        self._cancel_point_shortcut.activated.connect(
+            self.alignment.cancel_pending_point
+        )
 
         # Поток с камеры будет отдельным источником кадров. Пока действие
         # отключено явно, чтобы нажатие не выглядело как незамеченная ошибка.
@@ -202,6 +217,45 @@ class MainWindow(QMainWindow):
             )
             self._write_live_debug_state()
 
+    def _create_workspace_tabs(self) -> None:
+        """Поместить разметку и измерение в две вкладки главного окна.
+
+        Сгенерированная Qt-форма остаётся целиком внутри первой вкладки. Такой
+        приём не требует дублировать ``dron.ui`` и сохраняет все существующие
+        ссылки ``self.ui`` на кнопки и графические сцены.
+        """
+
+        annotation_workspace = self.takeCentralWidget()
+        if annotation_workspace is None:
+            raise RuntimeError("Сгенерированная форма не создала центральный виджет")
+
+        self.workspace_tabs = QTabWidget(self)
+        self.workspace_tabs.setDocumentMode(True)
+        self.annotation_workspace = annotation_workspace
+        self.annotation_tab_index = self.workspace_tabs.addTab(
+            annotation_workspace, "Привязка и разметка"
+        )
+
+        self.measurement_tab = QWidget(self.workspace_tabs)
+        self.measurement_layout = QVBoxLayout(self.measurement_tab)
+        self.measurement_layout.setContentsMargins(0, 0, 0, 0)
+        placeholder = QLabel(
+            "Откройте и сохраните Teach-проект, затем перейдите на эту вкладку.",
+            self.measurement_tab,
+        )
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setWordWrap(True)
+        self.measurement_layout.addWidget(placeholder)
+        self.measurement_tab_index = self.workspace_tabs.addTab(
+            self.measurement_tab, "Измерение"
+        )
+
+        self._measurement_workspace: RepeatMeasurementWidget | None = None
+        self._measurement_workspace_stale = True
+        self._operator_dock_was_visible = True
+        self.setCentralWidget(self.workspace_tabs)
+        self.workspace_tabs.currentChanged.connect(self._on_workspace_tab_changed)
+
     def _create_operator_workspace(self) -> None:
         """Создать одну панель над существующими действиями меню."""
 
@@ -216,6 +270,11 @@ class MainWindow(QMainWindow):
         project_menu.addAction(self.action_save_project)
         project_menu.addAction(self.action_save_project_as)
 
+        measurement_menu = self.ui.menubar.addMenu("Измерения")
+        self.action_open_repeat_measurement = QAction("Перейти к измерению", self)
+        self.action_open_repeat_measurement.setShortcut(QKeySequence("Ctrl+M"))
+        measurement_menu.addAction(self.action_open_repeat_measurement)
+
         self.operator_dock = OperatorDock(self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.operator_dock)
         view_menu = self.ui.menubar.addMenu("Вид")
@@ -223,21 +282,13 @@ class MainWindow(QMainWindow):
         self.action_toggle_operator_dock.setText("Операторская панель")
         self.action_toggle_operator_dock.setShortcut(QKeySequence("Ctrl+Shift+O"))
         view_menu.addAction(self.action_toggle_operator_dock)
-        if (
-            self._remember_recent_sources
-            and self._settings.contains(WINDOW_STATE_KEY)
-        ):
+        if self._remember_recent_sources and self._settings.contains(WINDOW_STATE_KEY):
             self.restoreState(self._settings.value(WINDOW_STATE_KEY))
         else:
             self.operator_dock.setFloating(True)
             self.operator_dock.resize(360, 720)
-        if (
-            self._remember_recent_sources
-            and self._settings.contains(DOCK_GEOMETRY_KEY)
-        ):
-            self.operator_dock.restoreGeometry(
-                self._settings.value(DOCK_GEOMETRY_KEY)
-            )
+        if self._remember_recent_sources and self._settings.contains(DOCK_GEOMETRY_KEY):
+            self.operator_dock.restoreGeometry(self._settings.value(DOCK_GEOMETRY_KEY))
         # restoreState() честно восстанавливает и скрытое состояние панели.
         # Для основного рабочего инструмента это опасно: оператор остаётся без
         # управления и без очевидного способа понять, куда исчезла панель.
@@ -250,6 +301,9 @@ class MainWindow(QMainWindow):
         self.action_save_project_as.triggered.connect(
             lambda: self._save_operator_project(save_as=True)
         )
+        self.action_open_repeat_measurement.triggered.connect(
+            self._open_repeat_measurement
+        )
         panel.open_project_button.clicked.connect(self.action_open_project.trigger)
         panel.save_project_button.clicked.connect(self.action_save_project.trigger)
         panel.save_as_project_button.clicked.connect(
@@ -259,31 +313,23 @@ class MainWindow(QMainWindow):
         panel.previous_frame_button.clicked.connect(self.video.step_backward)
         panel.next_frame_button.clicked.connect(self.video.step_forward)
         panel.go_to_frame_button.clicked.connect(self._seek_from_operator_panel)
-        panel.frame_number_spin.editingFinished.connect(
-            self._seek_from_operator_panel
-        )
+        panel.frame_number_spin.editingFinished.connect(self._seek_from_operator_panel)
         panel.resume_button.clicked.connect(self._resume_saved_position)
         panel.next_attention_button.clicked.connect(
             self._seek_next_frame_requiring_attention
         )
 
         panel.overlay_check.setChecked(self.ui.actionShow_overlay.isChecked())
-        panel.overlay_check.toggled.connect(
-            self.ui.actionShow_overlay.setChecked
-        )
+        panel.overlay_check.toggled.connect(self.ui.actionShow_overlay.setChecked)
         self.ui.actionShow_overlay.toggled.connect(panel.overlay_check.setChecked)
         self.ui.actionShow_overlay.toggled.connect(self._mark_project_dirty)
-        panel.tracking_check.toggled.connect(
-            self.ui.actionTrack_points.setChecked
-        )
+        panel.tracking_check.toggled.connect(self.ui.actionTrack_points.setChecked)
         self.ui.actionTrack_points.toggled.connect(panel.tracking_check.setChecked)
         panel.landmark_mode_combo.currentIndexChanged.connect(
             lambda index: self.ui.actionSet_points.setChecked(index == 1)
         )
         self.ui.actionSet_points.toggled.connect(
-            lambda active: panel.landmark_mode_combo.setCurrentIndex(
-                1 if active else 0
-            )
+            lambda active: panel.landmark_mode_combo.setCurrentIndex(1 if active else 0)
         )
         panel.undo_point_button.clicked.connect(self.ui.actionUndo_point.trigger)
         panel.remove_selected_button.clicked.connect(
@@ -292,9 +338,7 @@ class MainWindow(QMainWindow):
         panel.confirm_alignment_button.clicked.connect(
             self.ui.actionCompute_alignment.trigger
         )
-        panel.correct_frame_button.clicked.connect(
-            self._begin_current_frame_correction
-        )
+        panel.correct_frame_button.clicked.connect(self._begin_current_frame_correction)
         panel.focus_landmark_button.clicked.connect(self._focus_selected_landmark)
         self._update_project_status()
 
@@ -440,9 +484,7 @@ class MainWindow(QMainWindow):
             self._resume_frame_index = project.current_frame_index
             self._project_dirty = False
             self._autosave_timer.stop()
-            self.setWindowTitle(
-                f"Aerial Map Measurement — {self._project_path.name}"
-            )
+            self.setWindowTitle(f"Aerial Map Measurement — {self._project_path.name}")
             self.ui.statusbar.showMessage(
                 f"Проект открыт: {self._project_path} | "
                 f"продолжение с кадра {project.current_frame_index + 1}"
@@ -545,6 +587,19 @@ class MainWindow(QMainWindow):
             or self._closing_window
         ):
             return
+        try:
+            project_size = self._project_path.stat().st_size
+        except OSError:
+            # Новый путь или временно отсутствующий файл не должен отключать
+            # первое автоматическое сохранение.
+            project_size = 0
+        if project_size > MAX_AUTOSAVE_PROJECT_BYTES:
+            self.ui.statusbar.showMessage(
+                "Автосохранение отложено: большой проект; "
+                "нажмите Ctrl+S в удобный момент"
+            )
+            self._update_project_status()
+            return
         self._write_operator_project(self._project_path, automatic=True)
 
     def _mark_project_dirty(self) -> None:
@@ -600,6 +655,120 @@ class MainWindow(QMainWindow):
         self._resume_frame_index = None
         self._project_dirty = self.alignment.has_operator_progress
         self._update_project_status()
+
+    def _open_repeat_measurement(self, _checked: bool = False) -> None:
+        """Перейти на измерительную вкладку вместо открытия нового окна."""
+
+        if self.workspace_tabs.currentIndex() == self.measurement_tab_index:
+            self._activate_measurement_workspace()
+        else:
+            self.workspace_tabs.setCurrentIndex(self.measurement_tab_index)
+
+    def _on_workspace_tab_changed(self, tab_index: int) -> None:
+        """Переключить операторский контекст между Teach и Repeat."""
+
+        measurement_selected = tab_index == self.measurement_tab_index
+        if hasattr(self, "operator_dock"):
+            if measurement_selected:
+                self._operator_dock_was_visible = self.operator_dock.isVisible()
+                self.operator_dock.hide()
+            elif self._operator_dock_was_visible:
+                self.operator_dock.show()
+
+            # Эти действия относятся к невидимой Teach-вкладке. Их отключение
+            # не позволяет случайно заменить исходники или разметку горячей
+            # клавишей, пока оператор работает с Repeat-кадром.
+            self.ui.menuVideo.setEnabled(not measurement_selected)
+            self.ui.menuMap.setEnabled(not measurement_selected)
+            self.ui.menuAlignment.setEnabled(not measurement_selected)
+            self.action_open_project.setEnabled(not measurement_selected)
+
+        if measurement_selected:
+            self._activate_measurement_workspace()
+
+    def _activate_measurement_workspace(self) -> None:
+        """Показать актуальный измерительный экран для текущего Teach-проекта."""
+
+        if (
+            self.video.source_path is None
+            or not self.video.is_flight
+            or self.map_image.source_path is None
+        ):
+            self._show_measurement_placeholder(
+                "Сначала откройте Teach-проект с каталогом пролёта и картой.",
+            )
+            return
+        if self._project_path is None or self._project_dirty:
+            if not self._save_operator_project():
+                self._show_measurement_placeholder(
+                    "Для измерения сохраните актуальный Teach-проект."
+                )
+                return
+
+        if (
+            self._measurement_workspace is not None
+            and not self._measurement_workspace_stale
+        ):
+            return
+
+        self._dispose_measurement_workspace()
+        workspace = RepeatMeasurementWidget(
+            teach_flight_directory=self.video.source_path,
+            map_path=self.map_image.source_path,
+            session=self.alignment.session,
+            repeat_start_directory=DEFAULT_FLIGHTS_DIRECTORY,
+            parent=self.measurement_tab,
+        )
+        workspace.busy_changed.connect(self._on_measurement_busy_changed)
+        self._replace_measurement_tab_content(workspace)
+        self._measurement_workspace = workspace
+        self._measurement_workspace_stale = False
+
+    def _show_measurement_placeholder(self, message: str) -> None:
+        """Объяснить внутри вкладки, каких Teach-данных пока не хватает."""
+
+        self._dispose_measurement_workspace()
+        placeholder = QLabel(message, self.measurement_tab)
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setWordWrap(True)
+        self._replace_measurement_tab_content(placeholder)
+
+    def _replace_measurement_tab_content(self, widget: QWidget) -> None:
+        """Заменить единственный экран измерительной вкладки."""
+
+        while self.measurement_layout.count():
+            item = self.measurement_layout.takeAt(0)
+            old_widget = item.widget()
+            if old_widget is not None and old_widget is not widget:
+                old_widget.setParent(None)
+                old_widget.deleteLater()
+        self.measurement_layout.addWidget(widget)
+
+    def _dispose_measurement_workspace(self) -> None:
+        """Удалить устаревший Repeat-экран и остановить его служебный поток."""
+
+        workspace = self._measurement_workspace
+        if workspace is None:
+            return
+        if workspace.is_busy:
+            raise RuntimeError(
+                "Нельзя заменить измерительную вкладку во время привязки"
+            )
+        workspace.shutdown()
+        self.measurement_layout.removeWidget(workspace)
+        workspace.setParent(None)
+        workspace.deleteLater()
+        self._measurement_workspace = None
+
+    def _on_measurement_busy_changed(self, busy: bool) -> None:
+        """Не разрешать редактировать Teach, пока Repeat читает его модель."""
+
+        self.workspace_tabs.setTabEnabled(self.annotation_tab_index, not busy)
+
+    def _mark_measurement_workspace_stale(self) -> None:
+        """Потребовать новый поисковый сервис после изменения Teach-данных."""
+
+        self._measurement_workspace_stale = True
 
     def _choose_video(self) -> None:
         """Открыть системный диалог и передать выбранный файл декодеру."""
@@ -657,6 +826,7 @@ class MainWindow(QMainWindow):
             self._reset_project_identity()
 
     def _on_video_loaded(self, path: str, frame_count: int, fps: float) -> None:
+        self._mark_measurement_workspace_stale()
         self.ui.pbPlay.setEnabled(True)
         self.ui.pbStop.setEnabled(True)
         self._configure_frame_slider(frame_count)
@@ -742,6 +912,7 @@ class MainWindow(QMainWindow):
     def _on_map_loaded(self, path: str, width: int, height: int) -> None:
         """Подтвердить загрузку и показать исходный размер карты."""
 
+        self._mark_measurement_workspace_stale()
         self._reset_automatic_attempt()
         self.ui.statusbar.showMessage(
             f"Карта: {Path(path).name} | {width}×{height} пикселей"
@@ -1131,6 +1302,7 @@ class MainWindow(QMainWindow):
     ) -> None:
         """Синхронизировать доступность действий с состоянием разметки."""
 
+        self._mark_measurement_workspace_stale()
         has_points = pair_count > 0 or has_pending_point
         self.ui.actionUndo_point.setEnabled(has_points)
         self.ui.actionRemove_selected.setEnabled(pair_count > 0)
@@ -1515,9 +1687,17 @@ class MainWindow(QMainWindow):
         """Предотвратить потерю прогресса и затем освободить источники."""
 
         if (
-            self._protect_unsaved_progress
-            and not self._confirm_unsaved_progress()
+            self._measurement_workspace is not None
+            and self._measurement_workspace.is_busy
         ):
+            QMessageBox.information(
+                self,
+                "Привязка выполняется",
+                "Дождитесь завершения текущей геометрической проверки.",
+            )
+            event.ignore()
+            return
+        if self._protect_unsaved_progress and not self._confirm_unsaved_progress():
             event.ignore()
             return
         self._closing_window = True
@@ -1542,6 +1722,7 @@ class MainWindow(QMainWindow):
             )
             self._live_debug_closed = True
             self._live_debug.close()
+        self._dispose_measurement_workspace()
         self.alignment.clear()
         self.alignment.dispose()
         self.video.close()

@@ -59,6 +59,20 @@ def test_load_preserves_frame_index_timing_and_gps(synthetic_flight: Path) -> No
     assert telemetry.altitude_ellipsoid_meters == pytest.approx(110.0)
 
 
+def test_load_without_positions_does_not_require_gps(
+    synthetic_flight: Path,
+) -> None:
+    """Чисто визуальный алгоритм не должен даже открывать файл координат."""
+
+    (synthetic_flight / "gps.csv").unlink()
+
+    flight = MarsLvigFlight.load(synthetic_flight, load_positions=False)
+
+    assert flight.frame_count == 3
+    assert flight.nominal_fps == pytest.approx(10.0)
+    assert not flight.telemetry(1).has_position
+
+
 def test_frame_outside_gps_range_has_no_invented_position(tmp_path: Path) -> None:
     """За пределами GPS нельзя молча подставлять крайнюю известную точку."""
 

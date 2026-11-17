@@ -13,6 +13,7 @@ import pytest
 from PySide6.QtCore import QEventLoop, QSettings, QTimer
 from PySide6.QtWidgets import QApplication, QGraphicsView
 
+from aerial_mapper.gui import video_playback as video_playback_module
 from aerial_mapper.gui.main_window import MainWindow
 from aerial_mapper.gui.video_playback import VideoPlaybackController
 
@@ -134,6 +135,60 @@ def test_controller_loads_flight_and_exposes_current_telemetry(
     assert telemetry.elapsed_seconds == pytest.approx(0.1)
     assert telemetry.latitude_degrees == pytest.approx(22.1)
     controller.close()
+
+
+def test_display_freeze_does_not_stop_source_progress(
+    qt_application: QApplication,
+    three_frame_flight: Path,
+) -> None:
+    """Старый кадр остаётся на экране, пока внутренний поток идёт дальше."""
+
+    controller = VideoPlaybackController(QGraphicsView())
+    assert controller.load_flight(three_frame_flight)
+    controller.play()
+    controller._timer.setInterval(10_000)
+
+    assert controller.freeze_display()
+    assert controller.is_playing
+    assert controller.is_display_frozen
+    assert controller.displayed_frame_index == 0
+
+    assert controller._show_frame(1)
+    assert controller.current_frame_index == 1
+    assert controller.displayed_frame_index == 0
+    held_frames = controller.held_frames_after(0)
+    assert [index for index, _frame in held_frames] == [1]
+    assert held_frames[0][1].shape == (24, 32, 3)
+
+
+    controller.resume_display()
+    assert controller.is_playing
+    assert not controller.is_display_frozen
+    assert controller.displayed_frame_index == 1
+    controller.close()
+
+def test_display_freeze_reports_buffer_overflow(
+    qt_application: QApplication,
+    three_frame_flight: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Слишком долгий выбор не должен перескакивать через пропущенный кадр."""
+
+    monkeypatch.setattr(
+        video_playback_module,
+        "MAXIMUM_DISPLAY_HOLD_FRAMES",
+        1,
+    )
+    controller = VideoPlaybackController(QGraphicsView())
+    assert controller.load_flight(three_frame_flight)
+    assert controller.freeze_display()
+    assert controller._show_frame(1)
+    assert controller._show_frame(2)
+
+    with pytest.raises(RuntimeError, match="слишком долго"):
+        controller.held_frames_after(0)
+    controller.close()
+
 
 
 def test_main_window_shows_first_flight_frame_telemetry(

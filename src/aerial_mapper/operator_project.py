@@ -91,8 +91,10 @@ def save_operator_project(
         json.dumps(
             document,
             ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
+            # Отступы почти удваивали реальный 194-МиБ проект. Порядок полей
+            # задаётся словарями выше, а человеку для проверки удобнее отчёты,
+            # поэтому рабочий файл храним компактно.
+            separators=(",", ":"),
             allow_nan=False,
         )
         + "\n"
@@ -290,7 +292,17 @@ def _annotation_to_json(annotation: FrameAnnotation) -> dict[str, Any]:
             else None
         ),
         "machine_observations": [
-            _json_safe(asdict(item)) for item in annotation.machine_observations
+            {
+                # Явное преобразование заметно дешевле рекурсивного asdict()
+                # для сотен тысяч неизменяемых машинных наблюдений.
+                "source_frame_index": item.source_frame_index,
+                "source_frame_point_px": list(item.source_frame_point_px),
+                "frame_point_px": list(item.frame_point_px),
+                "map_point_px": list(item.map_point_px),
+                "forward_backward_error_px": item.forward_backward_error_px,
+                "used_for_alignment": item.used_for_alignment,
+            }
+            for item in annotation.machine_observations
         ],
         "image_quality": (
             _json_safe(asdict(annotation.image_quality))

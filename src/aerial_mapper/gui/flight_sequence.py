@@ -54,11 +54,17 @@ class MarsLvigFlight:
     nominal_fps: float
 
     @classmethod
-    def load(cls, directory: str | Path) -> MarsLvigFlight:
-        """Прочитать каталог ``images + image_ids.csv + gps.csv``.
+    def load(
+        cls,
+        directory: str | Path,
+        *,
+        load_positions: bool = True,
+    ) -> MarsLvigFlight:
+        """Прочитать кадры и, если требуется интерфейсу, GPS-телеметрию.
 
         Все кадры проверяются при открытии. Благодаря этому повреждённый экспорт
-        обнаружится сразу, а не посередине воспроизведения.
+        обнаружится сразу, а не посередине воспроизведения. Рабочие алгоритмы,
+        которым нужны только изображения, могут полностью не открывать GPS.
         """
 
         flight_directory = Path(directory).expanduser().resolve()
@@ -72,31 +78,33 @@ class MarsLvigFlight:
         image_timestamps, image_ids = _read_image_index(
             flight_directory / "image_ids.csv"
         )
-        gps_timestamps, latitudes, longitudes, altitudes = _read_gps(
-            flight_directory / "gps.csv"
-        )
 
         image_paths = tuple(
             _resolve_image_path(images_directory, int(image_id))
             for image_id in image_ids
         )
-        frame_seconds, gps_seconds = _relative_seconds(image_timestamps, gps_timestamps)
-        valid_position_mask = (image_timestamps >= gps_timestamps[0]) & (
-            image_timestamps <= gps_timestamps[-1]
-        )
-
         frame_latitudes = np.full(image_ids.shape, np.nan, dtype=np.float64)
         frame_longitudes = np.full(image_ids.shape, np.nan, dtype=np.float64)
         frame_altitudes = np.full(image_ids.shape, np.nan, dtype=np.float64)
-        frame_latitudes[valid_position_mask] = np.interp(
-            frame_seconds[valid_position_mask], gps_seconds, latitudes
-        )
-        frame_longitudes[valid_position_mask] = np.interp(
-            frame_seconds[valid_position_mask], gps_seconds, longitudes
-        )
-        frame_altitudes[valid_position_mask] = np.interp(
-            frame_seconds[valid_position_mask], gps_seconds, altitudes
-        )
+        if load_positions:
+            gps_timestamps, latitudes, longitudes, altitudes = _read_gps(
+                flight_directory / "gps.csv"
+            )
+            frame_seconds, gps_seconds = _relative_seconds(
+                image_timestamps, gps_timestamps
+            )
+            valid_position_mask = (image_timestamps >= gps_timestamps[0]) & (
+                image_timestamps <= gps_timestamps[-1]
+            )
+            frame_latitudes[valid_position_mask] = np.interp(
+                frame_seconds[valid_position_mask], gps_seconds, latitudes
+            )
+            frame_longitudes[valid_position_mask] = np.interp(
+                frame_seconds[valid_position_mask], gps_seconds, longitudes
+            )
+            frame_altitudes[valid_position_mask] = np.interp(
+                frame_seconds[valid_position_mask], gps_seconds, altitudes
+            )
 
         median_interval_nanoseconds = float(
             np.median(np.diff(image_timestamps).astype(np.float64))

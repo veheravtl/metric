@@ -23,8 +23,19 @@ def _textured_frame() -> np.ndarray:
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
 
-def test_tracks_translation_and_recovers_current_frame_to_map_homography() -> None:
-    """Небольшой перенос не должен заставлять повторно размечать карту."""
+def test_tracks_translation_and_recovers_current_frame_to_map_homography(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Перенос использует глубокую пирамиду и сохраняет привязку к карте."""
+
+    pyramid_levels: list[int] = []
+    original_optical_flow = cv2.calcOpticalFlowPyrLK
+
+    def recording_optical_flow(*args, **kwargs):
+        pyramid_levels.append(int(kwargs["maxLevel"]))
+        return original_optical_flow(*args, **kwargs)
+
+    monkeypatch.setattr(cv2, "calcOpticalFlowPyrLK", recording_optical_flow)
 
     previous = _textured_frame()
     motion_previous_to_current = np.asarray(
@@ -86,6 +97,9 @@ def test_tracks_translation_and_recovers_current_frame_to_map_homography() -> No
     independent_errors = np.linalg.norm(predicted_map - expected_map, axis=1)
     assert np.max(independent_errors) < 1.0
     assert result.accepted_forward_backward_max_px < 0.5
+    # Прямой и обратный проходы должны использовать уровень 1/32. Эта
+    # настройка защищает реальные переходы со сдвигом порядка 150–200 px.
+    assert pyramid_levels == [5, 5]
 
 
 def test_blank_frame_is_rejected_instead_of_returning_alignment() -> None:
