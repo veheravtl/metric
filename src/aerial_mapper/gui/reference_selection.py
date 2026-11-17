@@ -38,6 +38,8 @@ from .map_image import MapImageController
 REFERENCE_MAP_PATH_KEY = "reference/map_path"
 REFERENCE_LATITUDE_KEY = "reference/latitude_degrees"
 REFERENCE_LONGITUDE_KEY = "reference/longitude_degrees"
+REFERENCE_CALIBRATION_VERSION_KEY = "reference/calibration_version"
+REFERENCE_CALIBRATION_VERSION = 2
 
 
 class ReferenceSelectionWidget(QWidget):
@@ -174,9 +176,7 @@ class ReferenceSelectionWidget(QWidget):
 
         self._placement = None
         self._remove_items(self._reference_marker_items)
-        self._settings.remove(REFERENCE_LATITUDE_KEY)
-        self._settings.remove(REFERENCE_LONGITUDE_KEY)
-        self._settings.sync()
+        self._remove_persisted_reference()
         self.clear_button.setEnabled(False)
         self.reference_status_label.setText(
             "Репер ещё не выбран. Автоматическое измерение азимута и "
@@ -206,9 +206,7 @@ class ReferenceSelectionWidget(QWidget):
             # Карта часто загружается до того, как layout назначит области
             # окончательный размер. Контекст map_view отменит callback, если
             # вкладка будет уничтожена до следующего прохода цикла событий.
-            QTimer.singleShot(
-                0, self.map_view, self.map_image.fit_to_view
-            )
+            QTimer.singleShot(0, self.map_view, self.map_image.fit_to_view)
         return super().eventFilter(watched, event)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
@@ -261,16 +259,28 @@ class ReferenceSelectionWidget(QWidget):
     def _restore_settings(self) -> None:
         latitude = self._settings.value(REFERENCE_LATITUDE_KEY, None)
         longitude = self._settings.value(REFERENCE_LONGITUDE_KEY, None)
-        if latitude is not None and longitude is not None:
+        calibration_version = self._settings.value(
+            REFERENCE_CALIBRATION_VERSION_KEY,
+            0,
+            type=int,
+        )
+        if (
+            latitude is not None
+            and longitude is not None
+            and calibration_version == REFERENCE_CALIBRATION_VERSION
+        ):
             try:
                 placement = place_reference_from_geographic(
                     GeographicPoint(float(latitude), float(longitude))
                 )
             except (TypeError, ValueError, ReferenceMapFailure):
-                self._settings.remove(REFERENCE_LATITUDE_KEY)
-                self._settings.remove(REFERENCE_LONGITUDE_KEY)
+                self._remove_persisted_reference()
             else:
                 self._set_placement(placement, persist=False, emit=False)
+        elif latitude is not None or longitude is not None or calibration_version != 0:
+            # Версия 1 сохраняла координату с ошибочным поворотом экранной оси
+            # Y. Такой репер нельзя молча использовать в новых измерениях.
+            self._remove_persisted_reference()
 
         saved_path = self._settings.value(REFERENCE_MAP_PATH_KEY, "", type=str)
         if saved_path and Path(saved_path).is_file():
@@ -291,6 +301,10 @@ class ReferenceSelectionWidget(QWidget):
             self._settings.setValue(
                 REFERENCE_LONGITUDE_KEY, placement.point.longitude_degrees
             )
+            self._settings.setValue(
+                REFERENCE_CALIBRATION_VERSION_KEY,
+                REFERENCE_CALIBRATION_VERSION,
+            )
             self._settings.sync()
         self.clear_button.setEnabled(True)
         self.reference_status_label.setText(
@@ -304,6 +318,14 @@ class ReferenceSelectionWidget(QWidget):
             self._draw_reference_marker(placement.map_pixel)
         if emit:
             self.reference_changed.emit(placement.point)
+
+    def _remove_persisted_reference(self) -> None:
+        """Удалить координату вместе с версией использованной калибровки."""
+
+        self._settings.remove(REFERENCE_LATITUDE_KEY)
+        self._settings.remove(REFERENCE_LONGITUDE_KEY)
+        self._settings.remove(REFERENCE_CALIBRATION_VERSION_KEY)
+        self._settings.sync()
 
     def _draw_static_overlays(self) -> None:
         scene = self.map_view.scene()

@@ -20,8 +20,8 @@ from aerial_mapper.reference_map import (
 GEOD = Geod(ellps="WGS84")
 
 
-def test_control_pixels_recover_both_given_geographic_points() -> None:
-    """Две исходные метки обязаны замкнуть калибровку без систематического сдвига."""
+def test_control_pair_sets_north_up_scale_with_small_marker_residual() -> None:
+    """Вторая метка задаёт масштаб, но не поворачивает известный север снимка."""
 
     center = place_reference_from_pixel(AIRPORT_CENTER_PIXEL)
     scale = reference_map_pixel_to_geographic(SCALE_CONTROL_PIXEL)
@@ -33,8 +33,38 @@ def test_control_pixels_recover_both_given_geographic_points() -> None:
         SCALE_CONTROL_POINT.longitude_degrees,
         SCALE_CONTROL_POINT.latitude_degrees,
     )
-    assert error_meters == pytest.approx(0.0, abs=1e-6)
+    # Около 16,6 м остатка согласуются с ошибкой ручного чтения маркера порядка
+    # одного пикселя. Поворачивать из-за этого всю северо-ориентированную карту
+    # нельзя: тогда низ снимка ошибочно превращался почти в восток.
+    assert error_meters < 20.0
     assert reference_map_meters_per_pixel() == pytest.approx(17.632059, rel=1e-6)
+
+
+@pytest.mark.parametrize(
+    ("pixel", "expected_azimuth"),
+    [
+        ((443.5, 280.5), 0.0),
+        ((543.5, 380.5), 90.0),
+        ((443.5, 480.5), 180.0),
+        ((343.5, 380.5), 270.0),
+    ],
+)
+def test_cardinal_pixel_directions_preserve_north_up_orientation(
+    pixel: tuple[float, float],
+    expected_azimuth: float,
+) -> None:
+    """Верх/право/низ/лево обязаны означать север/восток/юг/запад."""
+
+    placement = place_reference_from_pixel(pixel)
+
+    assert placement.azimuth_from_center_degrees == pytest.approx(
+        expected_azimuth,
+        abs=1e-9,
+    )
+    assert placement.distance_from_center_meters == pytest.approx(
+        100.0 * reference_map_meters_per_pixel(),
+        rel=1e-12,
+    )
 
 
 def test_geographic_round_trip_preserves_pixel_and_geodesic_metadata() -> None:

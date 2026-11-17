@@ -4,13 +4,15 @@
 """Калибровка обзорной карты и ограниченный выбор удалённого репера.
 
 Обзорный снимок не является географической информационной системой и не
-содержит встроенной привязки. Две показанные пользователем точки задают для
-него локальное преобразование подобия: единый масштаб и поворот между
-пикселями изображения и осями «восток — север» в метрах.
+содержит встроенной привязки. Известное условие «верх снимка — север» задаёт
+ориентацию осей однозначно: X пикселя растёт на восток, а Y — на юг. Две
+показанные пользователем точки нужны только для оценки единого наземного
+масштаба.
 
 На круге радиусом 6 км плоское преобразование используется только для
 интерфейса. Итоговые координаты, расстояние и азимут всегда вычисляются на
-эллипсоиде WGS 84 библиотекой PyProj.
+эллипсоиде WGS 84 библиотекой PyProj. Отдельный знак минус по Y принципиален:
+экранная ось направлена вниз, тогда как географический север — вверх.
 """
 
 from __future__ import annotations
@@ -31,8 +33,8 @@ MAXIMUM_REFERENCE_DISTANCE_METERS = 6_000.0
 
 # Центры двух маркеров считаны с предоставленных пользователем снимков
 # 888×795 px. Первый маркер — центр рабочего района HKairport, второй —
-# независимая точка масштаба и ориентации. Ошибка чтения центра порядка одного
-# пикселя соответствует примерно 17,6 м и остаётся ограничением этой схемы.
+# независимая точка масштаба. Ориентация не оценивается по маркерам: верх
+# снимка по условию всегда является севером.
 AIRPORT_CENTER = GeographicPoint(22.415641, 114.043616)
 AIRPORT_CENTER_PIXEL = (443.5, 380.5)
 SCALE_CONTROL_POINT = GeographicPoint(22.451025, 113.996237)
@@ -81,8 +83,7 @@ def reference_map_meters_per_pixel(
 ) -> float:
     """Вернуть единый наземный масштаб обзорного снимка."""
 
-    east_per_pixel, north_per_pixel = _pixel_to_meter_coefficients(calibration)
-    return hypot(east_per_pixel, north_per_pixel)
+    return _reference_map_scale_meters_per_pixel(calibration)
 
 
 def place_reference_from_pixel(
@@ -223,35 +224,32 @@ def place_reference_from_geographic(
     )
 
 
-def _pixel_to_meter_coefficients(
+def _reference_map_scale_meters_per_pixel(
     calibration: ReferenceMapCalibration,
-) -> tuple[float, float]:
-    """Вернуть метрические оси одного пикселя как комплексный коэффициент.
+) -> float:
+    """Оценить единый масштаб по расстоянию между двумя опорными точками.
 
-    Пара ``(east_per_pixel, north_per_pixel)`` означает смещение в метрах при
-    движении на один пиксель вправо. Ось одного пикселя вниз получается тем же
-    поворотом на 90°, что сохраняет одинаковый масштаб по X и Y.
+    Направление от одного маркера к другому намеренно не используется для
+    оценки поворота: север уже задан верхом изображения. Небольшое расхождение
+    направлений двух маркеров относится к ошибке ручного чтения скриншота.
     """
 
-    azimuth, _back_azimuth, distance = _WGS84_GEOD.inv(
+    _azimuth, _back_azimuth, distance = _WGS84_GEOD.inv(
         calibration.center.longitude_degrees,
         calibration.center.latitude_degrees,
         calibration.scale_control.longitude_degrees,
         calibration.scale_control.latitude_degrees,
     )
-    azimuth_radians = radians(float(azimuth))
-    control_east = float(distance) * sin(azimuth_radians)
-    control_north = float(distance) * cos(azimuth_radians)
     dx = calibration.scale_control_pixel[0] - calibration.center_pixel[0]
     dy = calibration.scale_control_pixel[1] - calibration.center_pixel[1]
-    pixel_norm_squared = dx * dx + dy * dy
-    if pixel_norm_squared <= 0.0:
+    pixel_distance = hypot(dx, dy)
+    if pixel_distance <= 0.0:
         raise ReferenceMapFailure("Контрольные пиксели карты совпадают")
-
-    # Ищем коэффициент комплексного деления (east + i*north)/(dx + i*dy).
-    east_per_pixel = (control_east * dx + control_north * dy) / pixel_norm_squared
-    north_per_pixel = (control_north * dx - control_east * dy) / pixel_norm_squared
-    return east_per_pixel, north_per_pixel
+    if not np.isfinite(distance) or distance <= 0.0:
+        raise ReferenceMapFailure(
+            "Географические точки масштаба совпадают или некорректны"
+        )
+    return float(distance) / pixel_distance
 
 
 def _pixel_offset_to_local_meters(
@@ -259,9 +257,10 @@ def _pixel_offset_to_local_meters(
     dy: float,
     calibration: ReferenceMapCalibration,
 ) -> tuple[float, float]:
-    east_per_pixel, north_per_pixel = _pixel_to_meter_coefficients(calibration)
-    east = east_per_pixel * dx - north_per_pixel * dy
-    north = north_per_pixel * dx + east_per_pixel * dy
+    scale = _reference_map_scale_meters_per_pixel(calibration)
+    east = scale * dx
+    # Пиксельный Y растёт вниз, географическая координата «север» — вверх.
+    north = -scale * dy
     return east, north
 
 
@@ -270,13 +269,8 @@ def _local_meters_to_pixel_offset(
     north: float,
     calibration: ReferenceMapCalibration,
 ) -> tuple[float, float]:
-    east_per_pixel, north_per_pixel = _pixel_to_meter_coefficients(calibration)
-    denominator = east_per_pixel**2 + north_per_pixel**2
-    if denominator <= 0.0:
-        raise ReferenceMapFailure("Масштаб обзорной карты равен нулю")
-    dx = (east_per_pixel * east + north_per_pixel * north) / denominator
-    dy = (-north_per_pixel * east + east_per_pixel * north) / denominator
-    return dx, dy
+    scale = _reference_map_scale_meters_per_pixel(calibration)
+    return east / scale, -north / scale
 
 
 def _finite_pixel(pixel: tuple[float, float]) -> tuple[float, float]:

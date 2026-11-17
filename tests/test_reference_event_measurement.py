@@ -11,6 +11,7 @@ from aerial_mapper.reference_event_measurement import (
     map_pixel_to_geographic,
     measure_target_and_event_from_reference,
 )
+from aerial_mapper.reference_map import place_reference_from_pixel
 
 GEOD = Geod(ellps="WGS84")
 
@@ -64,6 +65,36 @@ def test_direction_to_distant_reference_uses_local_north_up_axes(
     )
 
     assert direction == pytest.approx((0.0, 1.0), abs=1e-12)
+
+
+def test_reference_selected_at_map_bottom_stays_south_in_event_calculation(
+    calibration: NorthUpMapCalibration,
+) -> None:
+    """Нижний репер не должен снова превратиться в восточный на следующем этапе."""
+
+    reference = place_reference_from_pixel((443.5, 700.0)).point
+    direction = map_direction_to_geographic_point(
+        (50.0, 50.0),
+        target=reference,
+        calibration=calibration,
+        map_width_pixels=101,
+        map_height_pixels=101,
+        map_scale_meters_per_pixel=1.0,
+    )
+    result = measure_target_and_event_from_reference(
+        [(50.0, 50.0), (60.0, 50.0)],
+        calibration=calibration,
+        reference=reference,
+        map_width_pixels=101,
+        map_height_pixels=101,
+        map_scale_meters_per_pixel=1.0,
+    )
+
+    assert abs(direction[0]) < 0.02
+    assert direction[1] > 0.999
+    target_azimuth = result.target.geographic_azimuth_degrees
+    assert min(target_azimuth, 360.0 - target_azimuth) < 2.0
+    assert 5000.0 < result.target.distance_meters < 6000.0
 
 
 def test_rightward_event_has_positive_clockwise_deviation(

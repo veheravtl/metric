@@ -13,6 +13,8 @@ from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication
 
 from aerial_mapper.gui.reference_selection import (
+    REFERENCE_CALIBRATION_VERSION,
+    REFERENCE_CALIBRATION_VERSION_KEY,
     REFERENCE_LATITUDE_KEY,
     REFERENCE_LONGITUDE_KEY,
     ReferenceSelectionWidget,
@@ -78,11 +80,35 @@ def test_click_selects_reference_and_persists_geographic_point(
     assert received == [placement.point]
     assert settings.contains(REFERENCE_LATITUDE_KEY)
     assert settings.contains(REFERENCE_LONGITUDE_KEY)
+    assert (
+        settings.value(REFERENCE_CALIBRATION_VERSION_KEY, type=int)
+        == REFERENCE_CALIBRATION_VERSION
+    )
 
     restored = ReferenceSelectionWidget(settings=settings)
     assert restored.reference_point == placement.point
     assert restored.is_map_loaded
     restored.close()
+    widget.close()
+
+
+def test_legacy_reference_from_rotated_calibration_is_invalidated(
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    """Версия без знака оси Y не должна незаметно влиять на новые измерения."""
+
+    settings = _settings(tmp_path, "legacy-reference.ini")
+    settings.setValue(REFERENCE_LATITUDE_KEY, 22.4)
+    settings.setValue(REFERENCE_LONGITUDE_KEY, 114.0)
+    settings.sync()
+
+    widget = ReferenceSelectionWidget(settings=settings)
+
+    assert widget.reference_point is None
+    assert not settings.contains(REFERENCE_LATITUDE_KEY)
+    assert not settings.contains(REFERENCE_LONGITUDE_KEY)
+    assert not settings.contains(REFERENCE_CALIBRATION_VERSION_KEY)
     widget.close()
 
 
