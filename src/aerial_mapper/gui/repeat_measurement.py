@@ -48,11 +48,17 @@ from aerial_mapper.local_roi_tracking import (
     LocalRoiTracker,
     LocalRoiTrackingFailure,
 )
+from aerial_mapper.reference_direction import (
+    FrameDirectionSegment,
+    ReferenceDirectionProjectionFailure,
+    project_map_direction_to_frame_edge,
+)
 from aerial_mapper.reference_event_measurement import (
     GeographicPoint,
     NorthUpMapCalibration,
     ReferenceEventMeasurementFailure,
     TargetEventReferenceMeasurement,
+    map_direction_to_geographic_point,
     measure_target_and_event_from_reference,
 )
 from aerial_mapper.repeat_localization import (
@@ -83,7 +89,6 @@ HK_AIRFIELD_MAP_CALIBRATION = NorthUpMapCalibration(
     map_width_pixels=1242,
     map_height_pixels=986,
 )
-HK_REFERENCE_POINT = GeographicPoint(22.367007, 114.055838)
 
 
 def _format_reference_event_measurement(
@@ -331,7 +336,7 @@ class RepeatMeasurementWidget(QWidget):
         repeat_start_directory: str | Path,
         map_scale_meters_per_pixel: float = HK_AIRFIELD_SCALE_METERS_PER_PIXEL,
         map_calibration: NorthUpMapCalibration = HK_AIRFIELD_MAP_CALIBRATION,
-        reference_point: GeographicPoint = HK_REFERENCE_POINT,
+        reference_point: GeographicPoint | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -347,6 +352,7 @@ class RepeatMeasurementWidget(QWidget):
         self._reference_point = reference_point
         self._segment_points: list[tuple[float, float]] = []
         self._measurement_items: list[QGraphicsItem] = []
+        self._reference_direction_items: list[QGraphicsLineItem] = []
         self._overlay_item: QGraphicsPixmapItem | None = None
         self._event_detector = VisualEventDetector()
         self._pending_event_measurement = False
@@ -430,6 +436,28 @@ class RepeatMeasurementWidget(QWidget):
         """Вернуть последний автоматический замер ROI и события от репера."""
 
         return self._reference_event_measurement
+
+    @property
+    def reference_point(self) -> GeographicPoint | None:
+        """Вернуть репер, выбранный оператором на соседней вкладке."""
+
+        return self._reference_point
+
+    def set_reference_point(self, point: GeographicPoint | None) -> None:
+        """Применить новый ручной репер без перезапуска поискового сервиса."""
+
+        self._reference_point = point
+        self._clear_reference_direction_items()
+        self._update_reference_label()
+        if self._last_measurement_is_event and len(self._segment_points) == 2:
+            if point is None:
+                self._reference_event_measurement = None
+                self.result_label.setText(
+                    "Репер сброшен. Выберите его на вкладке «Репер» и "
+                    "повторите автоматическое измерение."
+                )
+            else:
+                self._calculate_measurement(event_measurement=True)
 
     def _build_interface(self, scale: float) -> None:
         root = QHBoxLayout(self)
@@ -541,6 +569,12 @@ class RepeatMeasurementWidget(QWidget):
         self.scale_spin.valueChanged.connect(self._recompute_measurement)
         form.addRow("Масштаб карты:", self.scale_spin)
         layout.addLayout(form)
+        self.reference_label = QLabel(group)
+        self.reference_label.setWordWrap(True)
+        self.reference_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        layout.addWidget(self.reference_label)
 
         row = QHBoxLayout()
         self.measure_button = QPushButton("Поставить 2 точки")
@@ -560,7 +594,18 @@ class RepeatMeasurementWidget(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
         layout.addWidget(self.result_label)
+        self._update_reference_label()
         return group
+
+    def _update_reference_label(self) -> None:
+        if self._reference_point is None:
+            self.reference_label.setText("Репер: не выбран на вкладке «Репер»")
+            return
+        self.reference_label.setText(
+            "Репер: "
+            f"{self._reference_point.latitude_degrees:.7f}, "
+            f"{self._reference_point.longitude_degrees:.7f}"
+        )
 
     def _choose_repeat_flight(self) -> None:
         directory = QFileDialog.getExistingDirectory(
@@ -703,17 +748,6 @@ class RepeatMeasurementWidget(QWidget):
 
         self._clear_measurement()
         self._segment_points.extend((roi_point, event.point_px))
-        scene = self.video_view.scene()
-        if scene is not None:
-            line = scene.addLine(
-                roi_point[0],
-                roi_point[1],
-                event.point_px[0],
-                event.point_px[1],
-                QPen(QColor("#ffcc00"), 3.0),
-            )
-            line.setZValue(30.0)
-            self._measurement_items.append(line)
 
         self._pending_event_measurement = True
         self.status_label.setText(
@@ -1229,10 +1263,19 @@ class RepeatMeasurementWidget(QWidget):
         вторая — событием, а обе измеряются от удалённого репера.
         """
 
+        self._clear_reference_direction_items()
         if self._localization is None or len(self._segment_points) != 2:
             return
         map_bgr = self.map_image.current_image_bgr
         if map_bgr is None:
+            return
+        if event_measurement and self._reference_point is None:
+            self._measurement = None
+            self._reference_event_measurement = None
+            self._last_measurement_is_event = False
+            self.result_label.setText(
+                "Сначала поставьте репер внутри круга на вкладке «Репер»."
+            )
             return
         try:
             measurement = measure_scaled_map_segment(
@@ -1254,7 +1297,16 @@ class RepeatMeasurementWidget(QWidget):
                 if event_measurement
                 else None
             )
-        except (RepeatLocalizationFailure, ReferenceEventMeasurementFailure) as error:
+            direction_segments = (
+                self._calculate_reference_direction_segments(measurement)
+                if event_measurement
+                else None
+            )
+        except (
+            RepeatLocalizationFailure,
+            ReferenceEventMeasurementFailure,
+            ReferenceDirectionProjectionFailure,
+        ) as error:
             self._measurement = None
             self._reference_event_measurement = None
             self._last_measurement_is_event = False
@@ -1274,6 +1326,8 @@ class RepeatMeasurementWidget(QWidget):
             self.result_label.setText(
                 _format_reference_event_measurement(reference_event_measurement)
             )
+            if direction_segments is not None:
+                self._draw_reference_direction_segments(*direction_segments)
             return
         points = measurement.map_points_px
         self.result_label.setText(
@@ -1287,6 +1341,112 @@ class RepeatMeasurementWidget(QWidget):
             self._calculate_measurement(
                 event_measurement=self._last_measurement_is_event
             )
+
+    def _calculate_reference_direction_segments(
+        self,
+        measurement: ScaledMapSegmentMeasurement,
+    ) -> tuple[FrameDirectionSegment, FrameDirectionSegment]:
+        """Рассчитать видимые части лучей «репер ↔ ROI/событие».
+
+        Гомография применяется только в локальной окрестности каждой точки.
+        Географически далёкий репер задаёт азимут, но сам не проецируется в
+        кадр, где такая экстраполяция не имела бы проверенной точности.
+        """
+
+        frame = self.video.current_frame_bgr
+        map_bgr = self.map_image.current_image_bgr
+        reference = self._reference_point
+        if frame is None:
+            raise ReferenceDirectionProjectionFailure(
+                "Не удалось нарисовать направления: кадр пролёта не загружен"
+            )
+        if map_bgr is None or reference is None:
+            raise ReferenceDirectionProjectionFailure(
+                "Не удалось нарисовать направления без карты и репера"
+            )
+
+        frame_height, frame_width = frame.shape[:2]
+        map_height, map_width = map_bgr.shape[:2]
+        target_map_point, event_map_point = measurement.map_points_px
+        target_direction = map_direction_to_geographic_point(
+            target_map_point,
+            target=reference,
+            calibration=self._map_calibration,
+            map_width_pixels=map_width,
+            map_height_pixels=map_height,
+            map_scale_meters_per_pixel=self.scale_spin.value(),
+        )
+        event_direction = map_direction_to_geographic_point(
+            event_map_point,
+            target=reference,
+            calibration=self._map_calibration,
+            map_width_pixels=map_width,
+            map_height_pixels=map_height,
+            map_scale_meters_per_pixel=self.scale_spin.value(),
+        )
+        homography = self._localization
+        if homography is None:
+            raise ReferenceDirectionProjectionFailure(
+                "Не удалось нарисовать направления без привязки кадра"
+            )
+
+        target_segment = project_map_direction_to_frame_edge(
+            self._segment_points[0],
+            target_map_point,
+            target_direction,
+            homography.homography_repeat_to_map,
+            frame_width_pixels=frame_width,
+            frame_height_pixels=frame_height,
+        )
+        event_segment = project_map_direction_to_frame_edge(
+            self._segment_points[1],
+            event_map_point,
+            event_direction,
+            homography.homography_repeat_to_map,
+            frame_width_pixels=frame_width,
+            frame_height_pixels=frame_height,
+        )
+        return target_segment, event_segment
+
+    def _draw_reference_direction_segments(
+        self,
+        target_segment: FrameDirectionSegment,
+        event_segment: FrameDirectionSegment,
+    ) -> None:
+        """Нарисовать красный «событие → репер» и жёлтый «репер → ROI»."""
+
+        scene = self.video_view.scene()
+        if scene is None:
+            return
+        red_pen = QPen(QColor("#ff0000"), 3.0)
+        yellow_pen = QPen(QColor("#ffcc00"), 3.0)
+        red_pen.setCosmetic(True)
+        yellow_pen.setCosmetic(True)
+
+        red = scene.addLine(
+            *event_segment.origin_px,
+            *event_segment.boundary_px,
+            red_pen,
+        )
+        # У линии нет стрелки, но порядок концов сохраняет требуемый смысл:
+        # видимая граница представляет сторону репера, конец — точку ROI.
+        yellow = scene.addLine(
+            *target_segment.boundary_px,
+            *target_segment.origin_px,
+            yellow_pen,
+        )
+        for item in (red, yellow):
+            item.setZValue(30.0)
+        self._reference_direction_items.extend((red, yellow))
+
+    def _clear_reference_direction_items(self) -> None:
+        """Удалить прежние лучи перед пересчётом, сменой кадра или репера."""
+
+        for item in self._reference_direction_items:
+            scene = item.scene()
+            if scene is not None:
+                scene.removeItem(item)
+        self._reference_direction_items.clear()
 
     def _draw_map_measurement(
         self,
@@ -1343,6 +1503,7 @@ class RepeatMeasurementWidget(QWidget):
         self._measurement_items.append(marker)
 
     def _clear_measurement(self) -> None:
+        self._clear_reference_direction_items()
         for item in self._measurement_items:
             scene = item.scene()
             if scene is not None:

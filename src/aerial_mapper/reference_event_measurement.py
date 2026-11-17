@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import atan2, degrees, hypot
+from math import atan2, cos, degrees, hypot, radians, sin
 
 import numpy as np
 from numpy.typing import NDArray
@@ -133,6 +133,47 @@ def map_pixel_to_geographic(
         latitude_degrees=float(latitude),
         longitude_degrees=float(longitude),
     )
+
+
+def map_direction_to_geographic_point(
+    origin_map_point_px: tuple[float, float] | NDArray[np.floating],
+    *,
+    target: GeographicPoint,
+    calibration: NorthUpMapCalibration,
+    map_width_pixels: int,
+    map_height_pixels: int,
+    map_scale_meters_per_pixel: float,
+) -> tuple[float, float]:
+    """Вернуть единичное направление на географическую точку в осях карты.
+
+    Результат ``(dx, dy)`` задан в пиксельных осях север-ориентированной карты:
+    X растёт на восток, Y — на юг. Географическая цель может находиться далеко
+    за границей растрового снимка. Мы не экстраполируем туда гомографию, а
+    решаем обратную геодезическую задачу только для направления из локальной
+    точки карты.
+    """
+
+    origin = map_pixel_to_geographic(
+        origin_map_point_px,
+        calibration=calibration,
+        map_width_pixels=map_width_pixels,
+        map_height_pixels=map_height_pixels,
+        map_scale_meters_per_pixel=map_scale_meters_per_pixel,
+    )
+    _validate_geographic_point(target, name="Географическая цель направления")
+    azimuth, _back_azimuth, distance = _WGS84_GEOD.inv(
+        origin.longitude_degrees,
+        origin.latitude_degrees,
+        target.longitude_degrees,
+        target.latitude_degrees,
+    )
+    if not np.isfinite(azimuth) or not np.isfinite(distance) or distance <= 0.0:
+        raise ReferenceEventMeasurementFailure(
+            "Направление не определено для совпадающих исходной и целевой точек"
+        )
+
+    azimuth_radians = radians(float(azimuth))
+    return (sin(azimuth_radians), -cos(azimuth_radians))
 
 
 def measure_target_and_event_from_reference(

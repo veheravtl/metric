@@ -284,7 +284,7 @@ def test_hidden_saved_panel_is_shown_and_has_view_menu_recovery(
     restored.close()
 
 
-def test_measurement_is_second_tab_of_main_window(
+def test_reference_and_measurement_are_tabs_of_main_window(
     qt_application: QApplication,
     workspace_sources: tuple[Path, Path],
     tmp_path: Path,
@@ -302,14 +302,19 @@ def test_measurement_is_second_tab_of_main_window(
     window._project_path = tmp_path / "teach.aerial-project.json"
     window._project_dirty = False
     window.show()
+    selected_reference = GeographicPoint(22.42, 114.04)
+    window._on_reference_changed(selected_reference)
     qt_application.processEvents()
 
     assert window.centralWidget() is window.workspace_tabs
-    assert window.workspace_tabs.count() == 2
+    assert window.workspace_tabs.count() == 3
     assert window.workspace_tabs.tabText(window.annotation_tab_index) == (
         "Привязка и разметка"
     )
     assert window.workspace_tabs.tabText(window.measurement_tab_index) == "Измерение"
+    assert window.workspace_tabs.tabText(window.reference_tab_index) == "Репер"
+    assert window.reference_workspace.parentWidget() is window.reference_tab
+    assert window.reference_workspace.window() is window
 
     window.action_open_repeat_measurement.trigger()
     qt_application.processEvents()
@@ -321,6 +326,8 @@ def test_measurement_is_second_tab_of_main_window(
     assert workspace.window() is window
     assert not workspace.isWindow()
     assert not window.operator_dock.isVisible()
+    assert workspace.reference_point == selected_reference
+    assert "22.4200000" in workspace.reference_label.text()
 
     # Модальное окно раньше не давало менять Teach во время расчёта. После
     # переноса во вкладку ту же гарантию обеспечивает временная блокировка.
@@ -753,6 +760,8 @@ def test_confirmed_event_stops_stream_marks_frame_and_starts_measurement(
         assert not dialog._pending_event_measurement
     finally:
         dialog.shutdown()
+
+
 def test_automatic_event_outputs_reference_angles_and_distances(
     qt_application: QApplication,
     workspace_sources: tuple[Path, Path],
@@ -760,7 +769,7 @@ def test_automatic_event_outputs_reference_angles_and_distances(
 ) -> None:
     """Автособытие использует репер, а ручная пара остаётся обычным отрезком."""
 
-    _video_path, map_path = workspace_sources
+    video_path, map_path = workspace_sources
     anchor = GeographicPoint(22.416088, 114.042978)
     calibration = NorthUpMapCalibration(
         anchor=anchor,
@@ -774,6 +783,7 @@ def test_automatic_event_outputs_reference_angles_and_distances(
         180.0,
         1000.0,
     )
+    reference = GeographicPoint(reference_lat, reference_lon)
     dialog = RepeatMeasurementWidget(
         teach_flight_directory=tmp_path,
         map_path=map_path,
@@ -781,10 +791,11 @@ def test_automatic_event_outputs_reference_angles_and_distances(
         repeat_start_directory=tmp_path,
         map_scale_meters_per_pixel=1.0,
         map_calibration=calibration,
-        reference_point=GeographicPoint(reference_lat, reference_lon),
+        reference_point=reference,
     )
 
     try:
+        assert dialog.video.load_video(video_path)
         dialog._localization = RepeatLocalizationResult(
             repeat_frame_index=0,
             repeat_image_id=0,
@@ -812,13 +823,45 @@ def test_automatic_event_outputs_reference_angles_and_distances(
         assert "Азимут относительно цели: 0.000°" in dialog.result_label.text()
         assert "Дистанция от репера: 1000.0 м" in dialog.result_label.text()
         assert "Событие" in dialog.result_label.text()
+        assert len(dialog._reference_direction_items) == 2
+        red, yellow = dialog._reference_direction_items
+        assert red.pen().color() == QColor("#ff0000")
+        assert yellow.pen().color() == QColor("#ffcc00")
+        assert red.pen().isCosmetic()
+        assert yellow.pen().isCosmetic()
+        red_line = red.line()
+        yellow_line = yellow.line()
+        assert (red_line.x1(), red_line.y1()) == pytest.approx((60.0, 50.0))
+        assert red_line.y2() == pytest.approx(79.0)
+        assert 0.0 <= red_line.x2() < 60.0
+        assert (
+            yellow_line.x1(),
+            yellow_line.y1(),
+            yellow_line.x2(),
+            yellow_line.y2(),
+        ) == pytest.approx((50.0, 79.0, 50.0, 50.0), abs=1e-6)
+        dialog.set_reference_point(None)
+        assert dialog.reference_event_measurement is None
+        assert "Репер сброшен" in dialog.result_label.text()
+
+        assert not dialog._reference_direction_items
+        dialog._calculate_measurement(event_measurement=True)
+        assert dialog.reference_event_measurement is None
+        assert "вкладке «Репер»" in dialog.result_label.text()
+
+        dialog.set_reference_point(reference)
+        dialog._calculate_measurement(event_measurement=True)
+        assert dialog.reference_event_measurement is not None
+
         assert "Разность дистанций" in dialog.result_label.text()
+        assert len(dialog._reference_direction_items) == 2
 
         dialog._calculate_measurement()
 
         assert dialog.reference_event_measurement is None
         assert "Длина: 10.000 м" in dialog.result_label.text()
         assert "Цель (ROI)" not in dialog.result_label.text()
+        assert not dialog._reference_direction_items
     finally:
         dialog.shutdown()
 

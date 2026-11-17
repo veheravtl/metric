@@ -7,6 +7,7 @@ from aerial_mapper.reference_event_measurement import (
     GeographicPoint,
     NorthUpMapCalibration,
     ReferenceEventMeasurementFailure,
+    map_direction_to_geographic_point,
     map_pixel_to_geographic,
     measure_target_and_event_from_reference,
 )
@@ -40,6 +41,29 @@ def test_anchor_pixel_preserves_known_geographic_coordinate(
     )
 
     assert point == calibration.anchor
+
+
+def test_direction_to_distant_reference_uses_local_north_up_axes(
+    calibration: NorthUpMapCalibration,
+) -> None:
+    """Удалённая южная точка должна задавать вниз без проекции за край карты."""
+
+    reference_lon, reference_lat, _ = GEOD.fwd(
+        calibration.anchor.longitude_degrees,
+        calibration.anchor.latitude_degrees,
+        180.0,
+        6000.0,
+    )
+    direction = map_direction_to_geographic_point(
+        (50.0, 50.0),
+        target=GeographicPoint(reference_lat, reference_lon),
+        calibration=calibration,
+        map_width_pixels=101,
+        map_height_pixels=101,
+        map_scale_meters_per_pixel=1.0,
+    )
+
+    assert direction == pytest.approx((0.0, 1.0), abs=1e-12)
 
 
 def test_rightward_event_has_positive_clockwise_deviation(

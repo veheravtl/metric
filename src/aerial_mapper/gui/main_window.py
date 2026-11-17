@@ -46,11 +46,13 @@ from aerial_mapper.operator_project import (
     save_operator_project,
     source_matches_fingerprint,
 )
+from aerial_mapper.reference_event_measurement import GeographicPoint
 
 from .correspondence_editor import CorrespondenceEditor
 from .generated.ui_dron import Ui_MainWindow
 from .map_image import MapImageController
 from .operator_dock import OperatorDock
+from .reference_selection import ReferenceSelectionWidget
 from .repeat_measurement import RepeatMeasurementWidget
 from .video_playback import VideoPlaybackController
 
@@ -113,6 +115,7 @@ class MainWindow(QMainWindow):
             if settings is not None
             else QSettings(SETTINGS_ORGANIZATION, SETTINGS_APPLICATION)
         )
+        self._create_reference_workspace()
         self._restoring_recent_sources = False
         self._protect_unsaved_progress = bool(protect_unsaved_progress)
         self._automatic_alignment_busy = False
@@ -218,7 +221,7 @@ class MainWindow(QMainWindow):
             self._write_live_debug_state()
 
     def _create_workspace_tabs(self) -> None:
-        """Поместить разметку и измерение в две вкладки главного окна.
+        """Поместить разметку, выбор репера и измерение в главное окно.
 
         Сгенерированная Qt-форма остаётся целиком внутри первой вкладки. Такой
         приём не требует дублировать ``dron.ui`` и сохраняет все существующие
@@ -234,6 +237,18 @@ class MainWindow(QMainWindow):
         self.annotation_workspace = annotation_workspace
         self.annotation_tab_index = self.workspace_tabs.addTab(
             annotation_workspace, "Привязка и разметка"
+        )
+
+        self.reference_tab = QWidget(self.workspace_tabs)
+        self.reference_layout = QVBoxLayout(self.reference_tab)
+        self.reference_layout.setContentsMargins(0, 0, 0, 0)
+        reference_placeholder = QLabel(
+            "Подготовка вкладки ручного репера…", self.reference_tab
+        )
+        reference_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.reference_layout.addWidget(reference_placeholder)
+        self.reference_tab_index = self.workspace_tabs.addTab(
+            self.reference_tab, "Репер"
         )
 
         self.measurement_tab = QWidget(self.workspace_tabs)
@@ -256,6 +271,37 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.workspace_tabs)
         self.workspace_tabs.currentChanged.connect(self._on_workspace_tab_changed)
 
+    def _create_reference_workspace(self) -> None:
+        """Создать постоянную вкладку выбора репера с пользовательской картой."""
+
+        workspace = ReferenceSelectionWidget(
+            settings=self._settings,
+            parent=self.reference_tab,
+        )
+        while self.reference_layout.count():
+            item = self.reference_layout.takeAt(0)
+            old_widget = item.widget()
+            if old_widget is not None:
+                old_widget.setParent(None)
+                old_widget.deleteLater()
+        self.reference_layout.addWidget(workspace)
+        self.reference_workspace = workspace
+        self._reference_point = workspace.reference_point
+        workspace.reference_changed.connect(self._on_reference_changed)
+
+    def _on_reference_changed(self, point: object) -> None:
+        """Передать новый ручной репер уже открытому экрану измерения."""
+
+        self._reference_point = point if isinstance(point, GeographicPoint) else None
+        if self._measurement_workspace is not None:
+            self._measurement_workspace.set_reference_point(self._reference_point)
+        message = (
+            "Репер выбран"
+            if self._reference_point is not None
+            else "Репер сброшен"
+        )
+        self.ui.statusbar.showMessage(message)
+
     def _create_operator_workspace(self) -> None:
         """Создать одну панель над существующими действиями меню."""
 
@@ -271,6 +317,8 @@ class MainWindow(QMainWindow):
         project_menu.addAction(self.action_save_project_as)
 
         measurement_menu = self.ui.menubar.addMenu("Измерения")
+        self.action_open_reference_selection = QAction("Выбрать репер", self)
+        measurement_menu.addAction(self.action_open_reference_selection)
         self.action_open_repeat_measurement = QAction("Перейти к измерению", self)
         self.action_open_repeat_measurement.setShortcut(QKeySequence("Ctrl+M"))
         measurement_menu.addAction(self.action_open_repeat_measurement)
@@ -303,6 +351,9 @@ class MainWindow(QMainWindow):
         )
         self.action_open_repeat_measurement.triggered.connect(
             self._open_repeat_measurement
+        )
+        self.action_open_reference_selection.triggered.connect(
+            lambda: self.workspace_tabs.setCurrentIndex(self.reference_tab_index)
         )
         panel.open_project_button.clicked.connect(self.action_open_project.trigger)
         panel.save_project_button.clicked.connect(self.action_save_project.trigger)
@@ -665,12 +716,14 @@ class MainWindow(QMainWindow):
             self.workspace_tabs.setCurrentIndex(self.measurement_tab_index)
 
     def _on_workspace_tab_changed(self, tab_index: int) -> None:
-        """Переключить операторский контекст между Teach и Repeat."""
+        """Переключить контекст между Teach, ручным репером и Repeat."""
 
+        annotation_selected = tab_index == self.annotation_tab_index
         measurement_selected = tab_index == self.measurement_tab_index
         if hasattr(self, "operator_dock"):
-            if measurement_selected:
-                self._operator_dock_was_visible = self.operator_dock.isVisible()
+            if not annotation_selected:
+                if self.operator_dock.isVisible():
+                    self._operator_dock_was_visible = True
                 self.operator_dock.hide()
             elif self._operator_dock_was_visible:
                 self.operator_dock.show()
@@ -678,10 +731,10 @@ class MainWindow(QMainWindow):
             # Эти действия относятся к невидимой Teach-вкладке. Их отключение
             # не позволяет случайно заменить исходники или разметку горячей
             # клавишей, пока оператор работает с Repeat-кадром.
-            self.ui.menuVideo.setEnabled(not measurement_selected)
-            self.ui.menuMap.setEnabled(not measurement_selected)
-            self.ui.menuAlignment.setEnabled(not measurement_selected)
-            self.action_open_project.setEnabled(not measurement_selected)
+            self.ui.menuVideo.setEnabled(annotation_selected)
+            self.ui.menuMap.setEnabled(annotation_selected)
+            self.ui.menuAlignment.setEnabled(annotation_selected)
+            self.action_open_project.setEnabled(annotation_selected)
 
         if measurement_selected:
             self._activate_measurement_workspace()
@@ -717,6 +770,7 @@ class MainWindow(QMainWindow):
             map_path=self.map_image.source_path,
             session=self.alignment.session,
             repeat_start_directory=DEFAULT_FLIGHTS_DIRECTORY,
+            reference_point=self._reference_point,
             parent=self.measurement_tab,
         )
         workspace.busy_changed.connect(self._on_measurement_busy_changed)
